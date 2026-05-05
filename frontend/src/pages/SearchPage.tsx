@@ -3,14 +3,37 @@ export function SearchPage() {
     <section className="search-page" aria-labelledby="search-title">
       <div className="search-copy">
         <p className="eyebrow">Personal League matchup assistant</p>
-        <h1 id="search-title">Pick your best counter, not the generic counter.</h1>
+        <h1 id="search-title">Stop drafting theory. Start drafting what you win on.</h1>
         <p className="lede">
-          ComfortPick will analyze your stored match history and rank the
-          champions that worked best for you into each enemy pick.
+          ComfortPick turns your own match history into a practical draft tool.
+          Search a Riot ID, import matches once, then query any enemy pick and
+          see which champions actually perform for that player.
         </p>
+        <div className="signal-grid" aria-label="Product overview">
+          <article className="signal-card">
+            <span className="signal-label">Recommendation model</span>
+            <strong>Personal score over global tier lists</strong>
+            <p>Sample size, champion comfort, and matchup results stay visible.</p>
+          </article>
+          <article className="signal-card">
+            <span className="signal-label">Stored analysis</span>
+            <strong>DB-first refresh flow</strong>
+            <p>Imported matches are persisted and only new data triggers recalculation.</p>
+          </article>
+          <article className="signal-card">
+            <span className="signal-label">Result shape</span>
+            <strong>Clear picks, low-data flags, avoid warnings</strong>
+            <p>The product explains both what to lock in and what to stop forcing.</p>
+          </article>
+        </div>
       </div>
 
       <form className="search-form">
+        <div className="form-copy">
+          <p className="form-kicker">Analyze profile</p>
+          <h2>Search a Riot account</h2>
+          <p>Task 0 ships the real project surface and local infrastructure base.</p>
+        </div>
         <label>
           Game name
           <input name="gameName" autoComplete="off" placeholder="Rami" />
@@ -29,6 +52,18 @@ export function SearchPage() {
           </select>
         </label>
         <button type="submit">Analyze</button>
+        <div className="preview-card" aria-label="Example result preview">
+          <span className="preview-title">Example output</span>
+          <div className="preview-row">
+            <strong>Ahri into Zed</strong>
+            <span className="preview-score">86</span>
+          </div>
+          <div className="preview-meta">
+            <span>7 games</span>
+            <span>71% win rate</span>
+            <span>High confidence</span>
+          </div>
+        </div>
       </form>
     </section>
   )

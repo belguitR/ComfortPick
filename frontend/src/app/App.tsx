@@ -4,9 +4,12 @@ export function App() {
   return (
     <div className="app-shell">
       <header className="topbar">
-        <Link className="brand" to="/" aria-label="ComfortPick home">
-          ComfortPick
-        </Link>
+        <div className="brand-block">
+          <Link className="brand" to="/" aria-label="ComfortPick home">
+            ComfortPick
+          </Link>
+          <span className="brand-tag">Personal matchup intelligence</span>
+        </div>
         <nav className="topnav" aria-label="Primary navigation">
           <Link to="/">Search</Link>
         </nav>
