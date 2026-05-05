@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: comfortpick-backend
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/comfortpick}
+    username: ${SPRING_DATASOURCE_USERNAME:comfortpick}
+    password: ${SPRING_DATASOURCE_PASSWORD:comfortpick}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  data:
+    redis:
+      host: ${SPRING_REDIS_HOST:localhost}
+      port: ${SPRING_REDIS_PORT:6379}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+server:
+  port: ${SERVER_PORT:8080}
