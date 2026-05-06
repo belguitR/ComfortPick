@@ -1,10 +1,13 @@
 package com.comfortpick.api.summoner
 
 import com.comfortpick.application.usecase.SearchSummonerCommand
+import com.comfortpick.application.usecase.ImportMatchHistoryCommand
+import com.comfortpick.application.usecase.ImportMatchHistoryUseCase
 import com.comfortpick.application.usecase.SearchSummonerSource
 import com.comfortpick.application.usecase.SearchSummonerUseCase
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import java.util.UUID
@@ -13,6 +16,7 @@ import java.util.UUID
 @RequestMapping("/api/summoners")
 class SummonerController(
     private val searchSummonerUseCase: SearchSummonerUseCase,
+    private val importMatchHistoryUseCase: ImportMatchHistoryUseCase,
 ) {
     @GetMapping("/{region}/{gameName}/{tagLine}")
     fun searchSummoner(
@@ -37,6 +41,24 @@ class SummonerController(
             source = result.source,
         )
     }
+
+    @PostMapping("/{summonerId}/matches/import")
+    fun importMatchHistory(
+        @PathVariable summonerId: UUID,
+    ): MatchImportResponse {
+        val result = importMatchHistoryUseCase.execute(
+            ImportMatchHistoryCommand(
+                summonerId = summonerId,
+            ),
+        )
+
+        return MatchImportResponse(
+            importedMatchCount = result.importedMatchCount,
+            existingMatchCount = result.existingMatchCount,
+            importedMatchupCount = result.importedMatchupCount,
+            skippedMatchupCount = result.skippedMatchupCount,
+        )
+    }
 }
 
 data class SummonerSearchResponse(
@@ -46,4 +68,11 @@ data class SummonerSearchResponse(
     val tagLine: String,
     val region: String,
     val source: SearchSummonerSource,
+)
+
+data class MatchImportResponse(
+    val importedMatchCount: Int,
+    val existingMatchCount: Int,
+    val importedMatchupCount: Int,
+    val skippedMatchupCount: Int,
 )

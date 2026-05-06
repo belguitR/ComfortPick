@@ -184,6 +184,8 @@ Acceptance criteria:
 
 ## Task 5 - Match Import with Duplicate Protection
 
+Status: DONE
+
 Goal: Import recent matches once and store only new data.
 
 Application scope:
@@ -205,6 +207,8 @@ Acceptance criteria:
 - Transaction rollback works if match detail storage fails.
 
 ## Task 6 - Enemy Lane Opponent Detection
+
+Status: DONE
 
 Goal: Identify the likely enemy matchup from stored match rows.
 

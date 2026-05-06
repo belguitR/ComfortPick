@@ -3,6 +3,8 @@ package com.comfortpick.application.port.out
 import com.comfortpick.domain.model.RiotAccount
 
 interface RiotAccountStore {
+    fun findById(id: java.util.UUID): RiotAccount?
+
     fun findByRegionAndGameNameAndTagLine(
         region: String,
         gameName: String,

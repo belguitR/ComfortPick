@@ -10,6 +10,11 @@ import org.springframework.stereotype.Component
 class RiotAccountStoreAdapter(
     private val riotAccountRepository: RiotAccountRepository,
 ) : RiotAccountStore {
+    override fun findById(id: java.util.UUID): RiotAccount? =
+        riotAccountRepository.findById(id)
+            .orElse(null)
+            ?.toDomain()
+
     override fun findByRegionAndGameNameAndTagLine(
         region: String,
         gameName: String,

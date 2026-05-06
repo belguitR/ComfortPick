@@ -4,6 +4,7 @@ import com.comfortpick.application.port.out.exception.RiotApiNotFoundException
 import com.comfortpick.application.port.out.exception.RiotApiRateLimitException
 import com.comfortpick.application.port.out.exception.RiotApiUnauthorizedException
 import com.comfortpick.application.port.out.exception.RiotApiUnavailableException
+import com.comfortpick.application.usecase.SummonerProfileNotFoundException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.ExceptionHandler
@@ -25,6 +26,14 @@ class ApiErrorHandler {
             status = HttpStatus.NOT_FOUND,
             code = "SUMMONER_NOT_FOUND",
             message = "Summoner was not found.",
+        )
+
+    @ExceptionHandler(SummonerProfileNotFoundException::class)
+    fun handleProfileNotFound(exception: SummonerProfileNotFoundException): ResponseEntity<ApiErrorResponse> =
+        buildResponse(
+            status = HttpStatus.NOT_FOUND,
+            code = "SUMMONER_PROFILE_NOT_FOUND",
+            message = "Summoner profile was not found.",
         )
 
     @ExceptionHandler(RiotApiUnauthorizedException::class)

@@ -6,4 +6,5 @@ import java.util.UUID
 
 interface MatchRepository : JpaRepository<MatchEntity, UUID> {
     fun findByRiotMatchId(riotMatchId: String): MatchEntity?
+    fun findAllByRiotMatchIdIn(riotMatchIds: Collection<String>): List<MatchEntity>
 }
