@@ -159,6 +159,8 @@ Acceptance criteria:
 
 ## Task 4 - Summoner Search with DB Reuse
 
+Status: DONE
+
 Goal: Search a summoner while avoiding unnecessary Riot API usage.
 
 Application scope:

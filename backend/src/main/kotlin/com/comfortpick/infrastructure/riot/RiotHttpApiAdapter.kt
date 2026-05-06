@@ -12,8 +12,8 @@ import com.comfortpick.application.port.out.model.RiotRoutingRegion
 import com.comfortpick.infrastructure.riot.config.RiotApiProperties
 import com.comfortpick.infrastructure.riot.dto.RiotAccountDto
 import com.comfortpick.infrastructure.riot.dto.RiotMatchDto
+import com.sun.org.apache.bcel.internal.util.Args.require
 import org.springframework.http.HttpHeaders
-import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Component
 import org.springframework.util.LinkedMultiValueMap
 import org.springframework.web.client.HttpClientErrorException
@@ -22,6 +22,8 @@ import org.springframework.web.client.ResourceAccessException
 import org.springframework.web.client.RestClient
 import org.springframework.web.util.UriComponentsBuilder
 import java.net.URI
+import java.util.Collections.emptyList
+import java.util.Collections.emptyMap
 
 @Component
 class RiotHttpApiAdapter(
