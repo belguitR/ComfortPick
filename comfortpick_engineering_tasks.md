@@ -97,13 +97,15 @@ Acceptance criteria:
 
 ## Task 2 - Domain Models and Scoring Rules
 
+Status: DONE
+
 Goal: Implement pure domain logic before connecting external systems.
 
 Domain scope:
 - Add models:
   - `RiotAccount`
   - `Match`
-  - `Participant`
+  - `PlayerMatchup`
   - `PersonalMatchupStats`
   - `PersonalCounter`
   - `ConfidenceLevel`
