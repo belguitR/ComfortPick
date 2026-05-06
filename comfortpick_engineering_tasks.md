@@ -131,6 +131,8 @@ Acceptance criteria:
 
 ## Task 3 - Riot API Client Port and Adapter
 
+Status: DONE
+
 Goal: Create a clean Riot API boundary without leaking Riot DTOs into the domain.
 
 Application scope:
