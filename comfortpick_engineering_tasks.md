@@ -31,6 +31,8 @@ This document breaks ComfortPick into small implementation tasks. Each task shou
 
 ## Task 0 - Project Foundation
 
+Status: DONE
+
 Goal: Create the repository foundation for backend, frontend, database, and local development.
 
 Backend scope:
@@ -63,13 +65,15 @@ Acceptance criteria:
 
 ## Task 1 - Database Schema and Persistence Foundation
 
-Goal: Create the persistence model needed to store account, match, participant, and matchup data.
+Status: DONE
+
+Goal: Create the persistence model needed to store account, match, player matchup, and aggregated matchup data.
 
 Backend scope:
 - Add migrations for:
   - `riot_accounts`
   - `matches`
-  - `participants`
+  - `player_matchups`
   - `personal_matchup_stats`
   - `personal_build_stats`
 - Add persistence entities and repositories.
@@ -79,9 +83,9 @@ Required indexes:
 - `riot_accounts(puuid)`
 - `riot_accounts(region, game_name, tag_line)`
 - `matches(riot_match_id)`
-- `participants(match_id)`
-- `participants(puuid)`
-- `participants(champion_id, team_position)`
+- `player_matchups(match_id)`
+- `player_matchups(user_puuid)`
+- `player_matchups(user_champion_id, role)`
 - `personal_matchup_stats(riot_account_id, enemy_champion_id)`
 - `personal_matchup_stats(riot_account_id, enemy_champion_id, user_champion_id)`
 
@@ -181,7 +185,7 @@ Application scope:
 - Fetch recent match IDs from Riot API.
 - Check DB for already stored match IDs.
 - Fetch details only for missing matches.
-- Store matches and participants transactionally.
+- Store matches and player matchup rows transactionally.
 
 API scope:
 - Add endpoint:
@@ -191,12 +195,12 @@ Acceptance criteria:
 - Already stored matches are not fetched again.
 - Duplicate match imports are safe.
 - Imported match count and existing match count are returned.
-- Participant extraction is tested.
+- Matchup row extraction is tested.
 - Transaction rollback works if match detail storage fails.
 
 ## Task 6 - Enemy Lane Opponent Detection
 
-Goal: Identify the likely enemy matchup from stored participants.
+Goal: Identify the likely enemy matchup from stored match rows.
 
 Domain/application scope:
 - For MVP, detect the enemy participant with:
