@@ -11,10 +11,10 @@ Read these files first:
 
 ## Current status
 
-- Tasks 0 through 6 are implemented locally.
-- Tasks 0 through 4 are already pushed on `origin/main`.
-- Task 5 and Task 6 may exist locally before push; check `git status` and `git log` before claiming remote state.
-- Current next planned backend task: Task 7, matchup stats recalculation.
+- Tasks 0 through 7 are implemented.
+- Tasks 0 through 6 are already pushed on `origin/main`.
+- Check `git status` and `git log` before claiming remote state for the latest task.
+- Current next planned backend task: Task 8, personal counters endpoint.
 
 ## Product rule
 
@@ -71,6 +71,22 @@ Current response fields:
 - `existingMatchCount`: Riot match IDs already known locally
 - `importedMatchupCount`: new `player_matchups` rows stored
 - `skippedMatchupCount`: new matches where extraction failed
+- if `importedMatchupCount > 0`, trigger recalculation of `personal_matchup_stats` for that summoner
+
+## Current matchup stats recalculation
+
+Implemented in:
+
+- [RecalculatePersonalMatchupStatsUseCase.kt](</C:/Users/errmi/Documents/New project/backend/src/main/kotlin/com/comfortpick/application/usecase/RecalculatePersonalMatchupStatsUseCase.kt>)
+
+Current rule:
+
+- recalculate for one summoner only
+- use the full stored `player_matchups` history for that summoner
+- group by `enemyChampionId + userChampionId + role`
+- upsert one `personal_matchup_stats` row per group
+- delete stale `personal_matchup_stats` rows for that summoner
+- recent performance currently uses the latest `5` matchup rows inside the same grouped matchup
 
 ## Current opponent detection
 

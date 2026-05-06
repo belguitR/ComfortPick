@@ -7,7 +7,10 @@ import com.comfortpick.application.port.out.model.RiotRoutingRegion
 import com.comfortpick.application.service.PlayerMatchupExtractionFailureReason
 import com.comfortpick.application.service.PlayerMatchupExtractionResult
 import com.comfortpick.application.service.PlayerMatchupExtractor
+import com.comfortpick.application.usecase.RecalculatePersonalMatchupStatsCommand
+import com.comfortpick.application.usecase.RecalculatePersonalMatchupStatsUseCase
 import com.comfortpick.infrastructure.persistence.entity.MatchEntity
+import com.comfortpick.infrastructure.persistence.repository.PersonalMatchupStatsRepository
 import com.comfortpick.infrastructure.persistence.entity.PlayerMatchupEntity
 import com.comfortpick.infrastructure.persistence.entity.RiotAccountEntity
 import com.comfortpick.infrastructure.persistence.repository.MatchRepository
@@ -50,14 +53,21 @@ class MatchImportControllerIntegrationTest {
     @Autowired
     private lateinit var playerMatchupRepository: PlayerMatchupRepository
 
+    @Autowired
+    private lateinit var personalMatchupStatsRepository: PersonalMatchupStatsRepository
+
     @MockBean
     private lateinit var riotApiPort: RiotApiPort
 
     @SpyBean
     private lateinit var playerMatchupExtractor: PlayerMatchupExtractor
 
+    @SpyBean
+    private lateinit var recalculatePersonalMatchupStatsUseCase: RecalculatePersonalMatchupStatsUseCase
+
     @BeforeEach
     fun setUp() {
+        personalMatchupStatsRepository.deleteAll()
         playerMatchupRepository.deleteAll()
         matchRepository.deleteAll()
         riotAccountRepository.deleteAll()
@@ -109,8 +119,11 @@ class MatchImportControllerIntegrationTest {
             }
 
         verify(riotApiPort, never()).getMatchDetails(RiotRoutingRegion.EUROPE, "EUW1_EXISTING")
+        verify(recalculatePersonalMatchupStatsUseCase)
+            .execute(RecalculatePersonalMatchupStatsCommand(account.id))
         assertEquals(2, matchRepository.count())
         assertEquals(2, playerMatchupRepository.count())
+        assertEquals(1, personalMatchupStatsRepository.count())
     }
 
     @Test
@@ -140,8 +153,11 @@ class MatchImportControllerIntegrationTest {
             }
 
         verify(riotApiPort).getMatchDetails(RiotRoutingRegion.EUROPE, "EUW1_DUPLICATE")
+        verify(recalculatePersonalMatchupStatsUseCase)
+            .execute(RecalculatePersonalMatchupStatsCommand(account.id))
         assertEquals(1, matchRepository.count())
         assertEquals(1, playerMatchupRepository.count())
+        assertEquals(1, personalMatchupStatsRepository.count())
     }
 
     @Test
@@ -168,8 +184,11 @@ class MatchImportControllerIntegrationTest {
                 jsonPath("$.skippedMatchupCount", equalTo(1))
             }
 
+        verify(recalculatePersonalMatchupStatsUseCase, never())
+            .execute(RecalculatePersonalMatchupStatsCommand(account.id))
         assertEquals(1, matchRepository.count())
         assertEquals(0, playerMatchupRepository.count())
+        assertEquals(0, personalMatchupStatsRepository.count())
     }
 
     @Test

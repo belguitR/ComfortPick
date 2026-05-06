@@ -226,6 +226,8 @@ Acceptance criteria:
 
 ## Task 7 - Matchup Stats Recalculation
 
+Status: DONE
+
 Goal: Persist matchup stats and update them only when needed.
 
 Application scope:

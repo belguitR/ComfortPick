@@ -21,6 +21,7 @@ class ImportMatchHistoryUseCase(
     private val riotApiPort: RiotApiPort,
     private val matchImportStore: MatchImportStore,
     private val playerMatchupExtractor: PlayerMatchupExtractor,
+    private val recalculatePersonalMatchupStatsUseCase: RecalculatePersonalMatchupStatsUseCase,
     private val clock: Clock,
 ) {
     @Transactional
@@ -96,6 +97,14 @@ class ImportMatchHistoryUseCase(
             }
 
             importedMatchCount += 1
+        }
+
+        if (importedMatchupCount > 0) {
+            recalculatePersonalMatchupStatsUseCase.execute(
+                RecalculatePersonalMatchupStatsCommand(
+                    summonerId = account.id,
+                ),
+            )
         }
 
         return ImportMatchHistoryResult(

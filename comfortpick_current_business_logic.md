@@ -24,10 +24,10 @@ Implemented today:
 - Task 4: summoner search with DB reuse
 - Task 5: match import with duplicate protection
 - Task 6: enemy lane opponent detection
+- Task 7: matchup stats recalculation
 
 Not implemented yet:
 
-- recalculation and persistence of `personal_matchup_stats`
 - counter endpoint from precomputed matchup stats
 - profile dashboard
 - matchup detail endpoint
@@ -110,6 +110,7 @@ Current request flow:
 3. Compare returned Riot match IDs to local `matches`
 4. Only fetch details for match IDs not already stored
 5. Store new matches and extracted personal matchup rows in one transaction
+6. If at least one new `player_matchups` row was written, recalculate `personal_matchup_stats` for that summoner
 
 Current response fields:
 
@@ -121,6 +122,11 @@ Current response fields:
   - number of new `player_matchups` rows written
 - `skippedMatchupCount`
   - number of newly stored matches where personal matchup extraction failed
+
+Current recalculation trigger rule:
+
+- if `importedMatchupCount > 0`, recalculate personal matchup stats for that summoner
+- if `importedMatchupCount = 0`, do not recalculate
 
 Current Riot API call count for one import request:
 
@@ -217,7 +223,48 @@ This is important:
 - current extraction is based on one imported match
 - future counter recommendation should be based on the full historical set of relevant `player_matchups` in the DB, not just recent in-memory API data
 
-## 8. Counter calculation scope
+## 8. Matchup stats recalculation
+
+Current recalculation use case:
+
+- `RecalculatePersonalMatchupStatsUseCase`
+
+Current rule:
+
+- recalculate stats for one summoner only
+- use the full stored `player_matchups` history for that summoner
+- group by:
+  - `enemyChampionId`
+  - `userChampionId`
+  - `role`
+- upsert one `personal_matchup_stats` row per group
+- delete stale `personal_matchup_stats` rows for that summoner when they no longer correspond to any grouped matchup history
+
+Current aggregated fields per group:
+
+- `games`
+- `wins`
+- `losses`
+- `winrate`
+- `averageKda`
+- `averageCs`
+- `averageGold`
+- `averageDamage`
+- `personalScore`
+- `confidence`
+
+Current metric basis:
+
+- all stored matchup rows for the summoner are considered
+- `overallChampionGames` is the count of all stored `player_matchups` for the same `userChampionId`
+- recent performance uses the latest `5` stored matchup rows in the same grouped matchup
+
+Current KDA formula for aggregation:
+
+- if `deaths <= 0`: `kills + assists`
+- else: `(kills + assists) / deaths`
+
+## 9. Counter calculation scope
 
 Current recommendation scoring logic exists in code, but it is not yet connected to a live counter endpoint.
 
@@ -233,7 +280,7 @@ So yes, the recommendation should be based on the whole relevant matchup history
 
 It should not be based only on the latest API response once stats recalculation is wired.
 
-## 9. Current scoring formula
+## 10. Current scoring formula
 
 Current scoring implementation is in:
 
@@ -259,7 +306,7 @@ Final score is:
 - rounded to 1 decimal
 - clamped to `0.0..100.0`
 
-### 9.1 Winrate
+### 10.1 Winrate
 
 Formula:
 
@@ -276,7 +323,7 @@ Weight:
 
 - `0.35`
 
-### 9.2 Champion comfort
+### 10.2 Champion comfort
 
 Input:
 
@@ -294,7 +341,7 @@ Weight:
 
 - `0.25`
 
-### 9.3 KDA score
+### 10.3 KDA score
 
 Input:
 
@@ -311,7 +358,7 @@ Weight:
 
 - `0.15`
 
-### 9.4 CS and gold score
+### 10.4 CS and gold score
 
 Inputs:
 
@@ -344,7 +391,7 @@ Weight:
 
 - `0.10`
 
-### 9.5 Recent performance score
+### 10.5 Recent performance score
 
 Inputs:
 
@@ -366,7 +413,7 @@ Weight:
 
 - `0.10`
 
-### 9.6 Global fallback score
+### 10.6 Global fallback score
 
 Current constant:
 
@@ -376,7 +423,7 @@ Weight:
 
 - `0.05`
 
-### 9.7 Low sample penalty
+### 10.7 Low sample penalty
 
 Current penalty mapping:
 
@@ -388,7 +435,7 @@ Current penalty mapping:
 
 This penalty is subtracted after the weighted score is calculated.
 
-## 10. Current confidence logic
+## 11. Current confidence logic
 
 Current confidence mapping:
 
@@ -397,7 +444,7 @@ Current confidence mapping:
 - `3..6 games` -> `MEDIUM`
 - `>= 7 games` -> `HIGH`
 
-## 11. Current recommendation status logic
+## 12. Current recommendation status logic
 
 Current status mapping:
 
@@ -418,11 +465,10 @@ Possible status values:
 - `AVOID`
 - `NO_DATA`
 
-## 12. Important current limitations
+## 13. Important current limitations
 
 These are current implementation realities, not bugs unless we decide they are unacceptable:
 
-- counter stats are not yet recalculated into `personal_matchup_stats`
 - scoring logic exists but is not yet powering a public counter endpoint
 - import currently looks at only the latest `100` Riot match IDs per request
 - role/opponent detection is same-role only and still simple
@@ -432,11 +478,12 @@ These are current implementation realities, not bugs unless we decide they are u
 - no patch filtering yet
 - no recency weighting stored in DB yet
 
-## 13. Rules most likely to change later
+## 14. Rules most likely to change later
 
 These are the highest-probability future edits:
 
 - `RECENT_MATCH_COUNT = 100`
+- `RECENT_MATCHUP_SAMPLE_SIZE = 5`
 - 24-hour account freshness window
 - scoring weights
 - low sample penalties
@@ -446,11 +493,12 @@ These are the highest-probability future edits:
 - whether import should page through more than 100 match IDs
 - how "recent performance" is computed once full stat recalculation is wired
 
-## 14. Current code references
+## 15. Current code references
 
 Main files for these rules:
 
 - [SearchSummonerUseCase.kt](</C:/Users/errmi/Documents/New project/backend/src/main/kotlin/com/comfortpick/application/usecase/SearchSummonerUseCase.kt>)
 - [ImportMatchHistoryUseCase.kt](</C:/Users/errmi/Documents/New project/backend/src/main/kotlin/com/comfortpick/application/usecase/ImportMatchHistoryUseCase.kt>)
+- [RecalculatePersonalMatchupStatsUseCase.kt](</C:/Users/errmi/Documents/New project/backend/src/main/kotlin/com/comfortpick/application/usecase/RecalculatePersonalMatchupStatsUseCase.kt>)
 - [PlayerMatchupExtractor.kt](</C:/Users/errmi/Documents/New project/backend/src/main/kotlin/com/comfortpick/application/service/PlayerMatchupExtractor.kt>)
 - [RecommendationScoringService.kt](</C:/Users/errmi/Documents/New project/backend/src/main/kotlin/com/comfortpick/domain/service/RecommendationScoringService.kt>)
