@@ -256,6 +256,8 @@ Acceptance criteria:
 
 ## Task 8 - Personal Counters Endpoint
 
+Status: DONE
+
 Goal: Serve the core product feature from precomputed DB stats.
 
 Application scope:

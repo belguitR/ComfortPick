@@ -11,10 +11,10 @@ Read these files first:
 
 ## Current status
 
-- Tasks 0 through 7 are implemented.
-- Tasks 0 through 6 are already pushed on `origin/main`.
+- Tasks 0 through 8 are implemented locally.
+- Tasks 0 through 7 are already pushed on `origin/main`.
 - Check `git status` and `git log` before claiming remote state for the latest task.
-- Current next planned backend task: Task 8, personal counters endpoint.
+- Current next planned backend task: Task 9, profile dashboard endpoint.
 
 ## Product rule
 
@@ -87,6 +87,25 @@ Current rule:
 - upsert one `personal_matchup_stats` row per group
 - delete stale `personal_matchup_stats` rows for that summoner
 - recent performance currently uses the latest `5` matchup rows inside the same grouped matchup
+
+## Current counters endpoint
+
+Implemented in:
+
+- [ProfileController.kt](</C:/Users/errmi/Documents/New project/backend/src/main/kotlin/com/comfortpick/api/profile/ProfileController.kt>)
+- [GetEnemyChampionCountersUseCase.kt](</C:/Users/errmi/Documents/New project/backend/src/main/kotlin/com/comfortpick/application/usecase/GetEnemyChampionCountersUseCase.kt>)
+
+Endpoint:
+
+- `GET /api/profiles/{summonerId}/enemies/{enemyChampionId}/counters`
+
+Current rule:
+
+- reads only from `personal_matchup_stats`
+- does not call Riot API
+- returns counters sorted by stored `personalScore` descending
+- derives `status` from stored score, confidence, and games
+- returns an empty list when the profile exists but has no stored counters for that enemy champion
 
 ## Current opponent detection
 

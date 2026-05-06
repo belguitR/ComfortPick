@@ -25,10 +25,10 @@ Implemented today:
 - Task 5: match import with duplicate protection
 - Task 6: enemy lane opponent detection
 - Task 7: matchup stats recalculation
+- Task 8: personal counters endpoint
 
 Not implemented yet:
 
-- counter endpoint from precomputed matchup stats
 - profile dashboard
 - matchup detail endpoint
 - build/rune recommendation endpoint logic
@@ -266,7 +266,37 @@ Current KDA formula for aggregation:
 
 ## 9. Counter calculation scope
 
-Current recommendation scoring logic exists in code, but it is not yet connected to a live counter endpoint.
+Current counters endpoint:
+
+- `GET /api/profiles/{summonerId}/enemies/{enemyChampionId}/counters`
+
+Current endpoint rule:
+
+- read only from `personal_matchup_stats`
+- do not call Riot API
+- sort by stored `personalScore` descending
+- derive `status` from:
+  - stored `personalScore`
+  - stored `confidence`
+  - stored `games`
+- return empty list when the summoner exists but has no counters for that enemy champion
+
+Current returned fields per counter:
+
+- `enemyChampionId`
+- `userChampionId`
+- `role`
+- `games`
+- `wins`
+- `losses`
+- `winrate`
+- `averageKda`
+- `averageCs`
+- `averageGold`
+- `averageDamage`
+- `personalScore`
+- `confidence`
+- `status`
 
 The intended basis for one counter recommendation is:
 
