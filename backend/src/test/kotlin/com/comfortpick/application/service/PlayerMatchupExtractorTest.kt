@@ -37,6 +37,23 @@ class PlayerMatchupExtractorTest {
     }
 
     @Test
+    fun `falls back to individual position when team position is blank`() {
+        val result = extractor.extract(
+            userPuuid = "user-puuid",
+            matchDetails = buildMatchDetails(
+                participants = listOf(
+                    buildParticipant("user-puuid", 103, 100, " ", "MIDDLE"),
+                    buildParticipant("enemy-puuid", 238, 200, "", "MIDDLE"),
+                ),
+            ),
+        )
+
+        val success = assertIs<PlayerMatchupExtractionResult.Success>(result)
+        assertEquals("MIDDLE", success.matchup.role)
+        assertEquals(238, success.matchup.enemyChampionId)
+    }
+
+    @Test
     fun `returns missing role when user team position is blank`() {
         val result = extractor.extract(
             userPuuid = "user-puuid",
@@ -86,6 +103,7 @@ class PlayerMatchupExtractorTest {
         championId: Int,
         teamId: Int,
         teamPosition: String,
+        individualPosition: String = "",
     ): RiotMatchParticipantSnapshot =
         RiotMatchParticipantSnapshot(
             puuid = puuid,
@@ -93,6 +111,7 @@ class PlayerMatchupExtractorTest {
             championName = "Champion-$championId",
             teamId = teamId,
             teamPosition = teamPosition,
+            individualPosition = individualPosition,
             win = true,
             kills = 8,
             deaths = 2,

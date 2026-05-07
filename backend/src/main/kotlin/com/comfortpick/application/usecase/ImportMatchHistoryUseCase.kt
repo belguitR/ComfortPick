@@ -53,25 +53,30 @@ class ImportMatchHistoryUseCase(
         )
 
         val existingMatchIds = matchImportStore.findExistingMatchIds(recentMatchIds)
-        val newMatchIds = recentMatchIds.filterNot(existingMatchIds::contains)
+        val storedMatchIdsByRiotMatchId = matchImportStore.findStoredMatchIdByRiotMatchIds(recentMatchIds)
+        val matchIdsWithStoredMatchup = matchImportStore.findMatchIdsWithStoredMatchupForAccount(account.id, recentMatchIds)
+        val matchIdsNeedingProcessing = recentMatchIds.filterNot(matchIdsWithStoredMatchup::contains)
         val now = LocalDateTime.now(clock)
         var importedMatchCount = 0
         var importedMatchupCount = 0
         var skippedMatchupCount = 0
 
-        newMatchIds.forEach { matchId ->
+        matchIdsNeedingProcessing.forEach { matchId ->
             val matchDetails = riotApiPort.getMatchDetails(routingRegion, matchId)
-            val persistedMatchId = matchImportStore.saveMatch(
-                SaveMatchCommand(
-                    riotMatchId = matchDetails.riotMatchId,
-                    region = matchDetails.platformId,
-                    queueId = matchDetails.queueId,
-                    gameCreation = LocalDateTime.ofInstant(matchDetails.gameCreation, ZoneOffset.UTC),
-                    gameDurationSeconds = matchDetails.gameDurationSeconds,
-                    patch = matchDetails.patch,
-                    createdAt = now,
-                ),
-            )
+            val persistedMatchId = storedMatchIdsByRiotMatchId[matchId]
+                ?: matchImportStore.saveMatch(
+                    SaveMatchCommand(
+                        riotMatchId = matchDetails.riotMatchId,
+                        region = matchDetails.platformId,
+                        queueId = matchDetails.queueId,
+                        gameCreation = LocalDateTime.ofInstant(matchDetails.gameCreation, ZoneOffset.UTC),
+                        gameDurationSeconds = matchDetails.gameDurationSeconds,
+                        patch = matchDetails.patch,
+                        createdAt = now,
+                    ),
+                ).also {
+                    importedMatchCount += 1
+                }
 
             when (
                 val extractionResult = playerMatchupExtractor.extract(
@@ -110,8 +115,6 @@ class ImportMatchHistoryUseCase(
                     skippedMatchupCount += 1
                 }
             }
-
-            importedMatchCount += 1
         }
 
         if (importedMatchupCount > 0) {

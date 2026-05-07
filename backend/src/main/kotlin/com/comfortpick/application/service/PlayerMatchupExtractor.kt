@@ -15,16 +15,16 @@ class PlayerMatchupExtractor {
                 message = "Imported match ${matchDetails.riotMatchId} does not contain the target summoner",
             )
 
-        val role = userParticipant.teamPosition.trim()
+        val role = resolveRole(userParticipant)
         if (role.isEmpty()) {
             return PlayerMatchupExtractionResult.Failure(
                 reason = PlayerMatchupExtractionFailureReason.MISSING_ROLE,
-                message = "Imported match ${matchDetails.riotMatchId} has no valid team position for the target summoner",
+                message = "Imported match ${matchDetails.riotMatchId} has no valid role for the target summoner",
             )
         }
 
         val enemyParticipant = matchDetails.participants.firstOrNull { participant ->
-            participant.teamId != userParticipant.teamId && participant.teamPosition.trim().equals(role, ignoreCase = true)
+            participant.teamId != userParticipant.teamId && resolveRole(participant).equals(role, ignoreCase = true)
         } ?: return PlayerMatchupExtractionResult.Failure(
             reason = PlayerMatchupExtractionFailureReason.OPPONENT_NOT_FOUND,
             message = "Imported match ${matchDetails.riotMatchId} has no enemy participant for role $role",
@@ -49,6 +49,25 @@ class PlayerMatchupExtractor {
             ),
         )
     }
+
+    private fun resolveRole(participant: com.comfortpick.application.port.out.model.RiotMatchParticipantSnapshot): String {
+        val teamPosition = normalizeRole(participant.teamPosition)
+        if (teamPosition.isNotEmpty()) {
+            return teamPosition
+        }
+
+        return normalizeRole(participant.individualPosition)
+    }
+
+    private fun normalizeRole(rawRole: String): String =
+        when (rawRole.trim().uppercase()) {
+            "TOP" -> "TOP"
+            "JUNGLE" -> "JUNGLE"
+            "MIDDLE", "MID" -> "MIDDLE"
+            "BOTTOM", "BOT", "ADC" -> "BOTTOM"
+            "UTILITY", "SUPPORT", "SUP" -> "UTILITY"
+            else -> ""
+        }
 }
 
 sealed interface PlayerMatchupExtractionResult {

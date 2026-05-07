@@ -33,14 +33,24 @@ export async function apiRequest<TResponse>(
   path: string,
   options: ApiRequestOptions = {},
 ): Promise<TResponse> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  })
+  let response: Response
+
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    })
+  } catch {
+    throw new ApiError(
+      'Could not connect to the ComfortPick server.',
+      0,
+      'BACKEND_UNAVAILABLE',
+    )
+  }
 
   if (!response.ok) {
     const payload = await parseErrorPayload(response)

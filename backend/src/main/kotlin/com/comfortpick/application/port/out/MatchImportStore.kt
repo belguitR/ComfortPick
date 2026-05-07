@@ -6,6 +6,13 @@ import java.util.UUID
 interface MatchImportStore {
     fun findExistingMatchIds(riotMatchIds: Collection<String>): Set<String>
 
+    fun findStoredMatchIdByRiotMatchIds(riotMatchIds: Collection<String>): Map<String, UUID>
+
+    fun findMatchIdsWithStoredMatchupForAccount(
+        riotAccountId: UUID,
+        riotMatchIds: Collection<String>,
+    ): Set<String>
+
     fun saveMatch(command: SaveMatchCommand): UUID
 
     fun savePlayerMatchup(command: SavePlayerMatchupCommand)

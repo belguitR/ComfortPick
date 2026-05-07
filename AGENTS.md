@@ -60,7 +60,8 @@ Endpoint:
 Current implemented rules:
 
 - fetch match IDs in bounded batches
-- do not refetch match details for a `riot_match_id` already present in `matches`
+- do not insert a duplicate `riot_match_id` into `matches`
+- do refetch Riot match details when the global match already exists but the current summoner still has no `player_matchups` row for it
 - store every new match in `matches`
 - try to extract one personal matchup row for the tracked summoner
 - if extraction fails because the role/opponent cannot be determined, keep the `matches` row and skip the `player_matchups` row
@@ -92,12 +93,14 @@ Current implemented rules:
 - sync state is persisted on `riot_accounts`
 - search queues sync after summoner lookup
 - profile page queues sync on open
+- if scanned depth is at least `50` and stored matchup coverage is below `50%`, the next sync request resets the backfill cursor to `0` for a repair pass
 - one scheduler tick processes at most one account
 - each cycle:
   - checks the newest `10` matches at `start = 0`
   - imports only missing head matches
   - shifts the older-history cursor by the number of new head matches
   - backfills one older `10`-match page toward the `500`-match target
+- scheduler interval is currently `20 seconds`
 - dashboard exposes:
   - sync status
   - backfill cursor
@@ -223,8 +226,9 @@ Implemented in:
 Rule:
 
 - find the participant by `puuid`
-- read `teamPosition`
-- find the first enemy participant on the opposite team with the same `teamPosition` after trimming, case-insensitive
+- resolve role from `teamPosition`, then `individualPosition`
+- normalize accepted roles to `TOP`, `JUNGLE`, `MIDDLE`, `BOTTOM`, `UTILITY`
+- find the first enemy participant on the opposite team with the same normalized role
 
 Failure reasons:
 

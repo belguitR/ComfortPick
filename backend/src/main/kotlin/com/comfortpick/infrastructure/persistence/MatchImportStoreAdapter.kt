@@ -26,6 +26,27 @@ class MatchImportStoreAdapter(
             .mapTo(linkedSetOf()) { it.riotMatchId }
     }
 
+    override fun findStoredMatchIdByRiotMatchIds(riotMatchIds: Collection<String>): Map<String, UUID> {
+        if (riotMatchIds.isEmpty()) {
+            return emptyMap()
+        }
+
+        return matchRepository.findAllByRiotMatchIdIn(riotMatchIds)
+            .associate { it.riotMatchId to it.id }
+    }
+
+    override fun findMatchIdsWithStoredMatchupForAccount(
+        riotAccountId: UUID,
+        riotMatchIds: Collection<String>,
+    ): Set<String> {
+        if (riotMatchIds.isEmpty()) {
+            return emptySet()
+        }
+
+        return playerMatchupRepository.findRiotMatchIdsByRiotAccountIdAndRiotMatchIdIn(riotAccountId, riotMatchIds)
+            .toSet()
+    }
+
     override fun saveMatch(command: SaveMatchCommand): UUID =
         matchRepository.save(
             MatchEntity(

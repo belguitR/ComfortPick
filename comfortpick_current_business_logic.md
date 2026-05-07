@@ -121,8 +121,10 @@ Current flow:
 1. Load stored summoner by internal id
 2. Fetch Riot match IDs with `{start, count}`
 3. Compare those Riot IDs against local `matches`
-4. Fetch details only for Riot IDs not already stored
-5. Store each new `matches` row
+4. For each Riot match ID:
+   - skip it only when that summoner already has a stored `player_matchups` row for that match
+   - otherwise fetch Riot match details, even if the global `matches` row already exists
+5. Store a new `matches` row only when that Riot match ID is not already stored globally
 6. Attempt to extract exactly one personal matchup row for the tracked summoner
 7. If at least one new `player_matchups` row was written, recalculate `personal_matchup_stats`
 
@@ -136,7 +138,8 @@ Current response fields:
 
 Current duplicate rule:
 
-- a stored `riot_match_id` is never refetched for details
+- a stored `riot_match_id` is not stored twice in `matches`
+- but Riot details may be refetched when a specific summoner still has no stored `player_matchups` row for that match
 
 ## 6. Background history sync
 
@@ -163,7 +166,7 @@ Current sync constants:
 
 - target depth: `500`
 - batch size: `10`
-- scheduler interval: `30 seconds`
+- scheduler interval: `20 seconds`
 - dashboard poll interval hint: `10 seconds`
 - max accounts per scheduler tick: `1`
 
@@ -205,6 +208,10 @@ Current login/profile-open rule:
 
 - search page queues sync after summoner lookup
 - profile page queues sync on open
+- if analyzed coverage is suspiciously low for the already scanned depth:
+  - current threshold: at least `50` scanned matches and fewer than `50%` stored matchup rows
+  - reset `syncBackfillCursor` to `0` on the next sync request
+  - this triggers a repair pass through already scanned history with the current extractor
 - profile page polls the dashboard while sync status is:
   - `ACTIVE`
   - `RUNNING`
@@ -219,10 +226,18 @@ Implemented in:
 Current rule:
 
 1. Find the participant whose `puuid` matches the stored summoner
-2. Read that participant's `teamPosition`
+2. Resolve the user's role with:
+   - `teamPosition` first
+   - then `individualPosition` as fallback
+3. Normalize accepted roles to:
+   - `TOP`
+   - `JUNGLE`
+   - `MIDDLE`
+   - `BOTTOM`
+   - `UTILITY`
 3. Find the first enemy participant where:
    - `teamId` is different
-   - `teamPosition` matches after trimming, case-insensitive
+   - resolved role matches after normalization
 4. Save:
    - user champion
    - enemy champion

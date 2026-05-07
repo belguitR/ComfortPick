@@ -26,6 +26,7 @@ data class RiotMatchParticipantDto(
     val championName: String,
     val teamId: Int,
     val teamPosition: String?,
+    val individualPosition: String?,
     val win: Boolean,
     val kills: Int,
     val deaths: Int,

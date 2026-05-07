@@ -126,6 +126,7 @@ class RunHistorySyncCycleUseCaseIntegrationTest {
             championName = "Champion-$championId",
             teamId = teamId,
             teamPosition = teamPosition,
+            individualPosition = "",
             win = win,
             kills = 9,
             deaths = 3,

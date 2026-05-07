@@ -460,6 +460,10 @@ function getSyncTone(status: ProfileDashboardResponse['sync']['status']): 'green
 
 function getProfileErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
+    if (error.code === 'BACKEND_UNAVAILABLE') {
+      return 'ComfortPick is unavailable right now. Please retry in a moment.'
+    }
+
     if (error.code === 'SUMMONER_PROFILE_NOT_FOUND') {
       return 'We could not find that profile.'
     }

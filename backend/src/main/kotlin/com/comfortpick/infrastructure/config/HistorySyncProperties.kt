@@ -7,7 +7,7 @@ import java.time.Duration
 data class HistorySyncProperties(
     val targetMatches: Int = 500,
     val batchSize: Int = 10,
-    val schedulerInterval: Duration = Duration.ofSeconds(30),
+    val schedulerInterval: Duration = Duration.ofSeconds(20),
     val dashboardPollInterval: Duration = Duration.ofSeconds(10),
     val maxAccountsPerTick: Int = 1,
     val errorRetryDelay: Duration = Duration.ofMinutes(5),

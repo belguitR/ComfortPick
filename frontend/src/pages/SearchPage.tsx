@@ -224,6 +224,8 @@ async function tryQueueSyncOrCaptureError(
 function getSearchErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
     switch (error.code) {
+      case 'BACKEND_UNAVAILABLE':
+        return 'ComfortPick is unavailable right now. Please retry in a moment.'
       case 'SUMMONER_NOT_FOUND':
         return 'We could not find that Riot account. Check the game name, tagline, and region.'
       case 'RIOT_API_RATE_LIMIT':

@@ -200,6 +200,46 @@ class ProfileControllerIntegrationTest {
     }
 
     @Test
+    fun `sync request resets poisoned backfill cursor when analyzed coverage is too low`() {
+        val account = riotAccountRepository.save(
+            RiotAccountEntity(
+                id = UUID.randomUUID(),
+                puuid = "repair-sync-puuid",
+                gameName = "Rami",
+                tagLine = "EUW",
+                region = "EUROPE",
+                createdAt = LocalDateTime.now().minusDays(7),
+                updatedAt = LocalDateTime.now().minusDays(1),
+                autoSyncEnabled = true,
+                syncStatus = "ACTIVE",
+                syncTargetMatchCount = 500,
+                syncBackfillCursor = 150,
+            ),
+        )
+        val match = saveMatch("EUW1_REPAIR_1", LocalDateTime.now().minusDays(1))
+        repeat(40) { index ->
+            savePlayerMatchup(
+                account = account,
+                match = if (index == 0) match else saveMatch("EUW1_REPAIR_${index + 2}", LocalDateTime.now().minusDays(1).minusMinutes(index.toLong())),
+                userChampionId = 103,
+                enemyChampionId = 238,
+                role = "MIDDLE",
+                createdAt = LocalDateTime.now().minusDays(1).minusMinutes(index.toLong()),
+            )
+        }
+
+        mockMvc.post("/api/profiles/${account.id}/sync")
+            .andExpect {
+                status { isOk() }
+                jsonPath("$.backfillCursor", equalTo(0))
+            }
+
+        val storedAccount = riotAccountRepository.findById(account.id).orElseThrow()
+        kotlin.test.assertEquals(0, storedAccount.syncBackfillCursor)
+        verifyNoInteractions(riotApiPort)
+    }
+
+    @Test
     fun `returns matchup detail with newest recent games first`() {
         val account = saveAccount("detail-puuid")
         val now = LocalDateTime.now()

@@ -161,6 +161,39 @@ class MatchImportControllerIntegrationTest {
     }
 
     @Test
+    fun `retries extraction for an account when match already exists globally without matchup row`() {
+        val account = saveAccount()
+        matchRepository.save(
+            MatchEntity(
+                riotMatchId = "EUW1_SHARED",
+                region = "EUW1",
+                queueId = 420,
+                gameCreation = LocalDateTime.now().minusDays(1),
+                gameDurationSeconds = 1800,
+                patch = "15.10.1",
+            ),
+        )
+
+        given(riotApiPort.getMatchIdsByPuuid(RiotRoutingRegion.EUROPE, account.puuid, 0, 10))
+            .willReturn(listOf("EUW1_SHARED"))
+        given(riotApiPort.getMatchDetails(RiotRoutingRegion.EUROPE, "EUW1_SHARED"))
+            .willReturn(buildMatchDetails("EUW1_SHARED", account.puuid))
+
+        mockMvc.post("/api/summoners/${account.id}/matches/import")
+            .andExpect {
+                status { isOk() }
+                jsonPath("$.importedMatchCount", equalTo(0))
+                jsonPath("$.existingMatchCount", equalTo(1))
+                jsonPath("$.importedMatchupCount", equalTo(1))
+                jsonPath("$.skippedMatchupCount", equalTo(0))
+            }
+
+        assertEquals(1, matchRepository.count())
+        assertEquals(1, playerMatchupRepository.count())
+        assertEquals(1, personalMatchupStatsRepository.count())
+    }
+
+    @Test
     fun `keeps imported match but skips matchup row when extraction cannot determine opponent`() {
         val account = saveAccount()
         given(riotApiPort.getMatchIdsByPuuid(RiotRoutingRegion.EUROPE, account.puuid, 0, 10))
@@ -268,6 +301,7 @@ class MatchImportControllerIntegrationTest {
             championName = "Champion-$championId",
             teamId = teamId,
             teamPosition = teamPosition,
+            individualPosition = "",
             win = true,
             kills = 9,
             deaths = 3,

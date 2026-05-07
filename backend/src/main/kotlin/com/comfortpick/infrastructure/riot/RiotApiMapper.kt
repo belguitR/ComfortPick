@@ -35,6 +35,7 @@ class RiotApiMapper {
             championName = participant.championName,
             teamId = participant.teamId,
             teamPosition = participant.teamPosition.orEmpty(),
+            individualPosition = participant.individualPosition.orEmpty(),
             win = participant.win,
             kills = participant.kills,
             deaths = participant.deaths,
