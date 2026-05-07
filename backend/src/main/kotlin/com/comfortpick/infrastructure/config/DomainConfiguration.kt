@@ -1,5 +1,6 @@
 package com.comfortpick.infrastructure.config
 
+import com.comfortpick.domain.service.BuildRuneAnalysisService
 import com.comfortpick.domain.service.RecommendationScoringService
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -8,4 +9,7 @@ import org.springframework.context.annotation.Configuration
 class DomainConfiguration {
     @Bean
     fun recommendationScoringService(): RecommendationScoringService = RecommendationScoringService()
+
+    @Bean
+    fun buildRuneAnalysisService(): BuildRuneAnalysisService = BuildRuneAnalysisService()
 }

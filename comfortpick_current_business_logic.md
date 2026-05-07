@@ -28,10 +28,11 @@ Implemented today:
 - Task 8: personal counters endpoint
 - Task 9: profile dashboard endpoint
 - Task 10: matchup detail endpoint
+- Task 11: build and rune analysis
 
 Not implemented yet:
 
-- build/rune recommendation endpoint logic
+- frontend build/rune presentation
 
 That means some business logic below is already active in the running app, and some is implemented as domain logic but not yet wired into an endpoint.
 
@@ -462,7 +463,96 @@ Current reasoning text mapping:
 - `NO_DATA`
   - `"No personal data yet for this champion matchup."`
 
-## 12. Current scoring formula
+## 12. Current build and rune analysis
+
+Current build/rune analysis is exposed through:
+
+- `GET /api/profiles/{summonerId}/enemies/{enemyChampionId}/counters/{userChampionId}`
+
+Current rule:
+
+- analysis uses stored `player_matchups` for the selected:
+  - `enemyChampionId`
+  - `userChampionId`
+  - selected `role`
+- only winning games are used for recommendations
+- if there are no winning games, build/rune recommendations return empty values
+
+Current build recommendation fields:
+
+- `firstCompletedItemId`
+- `firstCompletedItemGames`
+- `itemSet`
+- `itemSetGames`
+- `score`
+
+Current rune recommendation fields:
+
+- `primaryRuneId`
+- `primaryRuneGames`
+- `secondaryRuneId`
+- `secondaryRuneGames`
+- `score`
+
+Current MVP heuristics:
+
+- `firstCompletedItemId`
+  - first non-zero inventory slot among stored final items `item0..item5`
+- `itemSet`
+  - joined non-zero final inventory items from `item0..item5`
+  - format: `itemA>itemB>itemC`
+- `primaryRuneId`
+  - most common `primaryRuneId` in winning games
+- `secondaryRuneId`
+  - most common `secondaryRuneId` in winning games
+
+Current deterministic tie-breakers:
+
+- item ids:
+  - lower item id first when counts tie
+- item sets:
+  - lexical string order when counts tie
+- rune ids:
+  - lower rune id first when counts tie
+
+Current build/rune score formula:
+
+- one shared score is used for both build and rune recommendations
+- inputs:
+  - matchup win rate for the selected role
+  - number of winning games supporting the recommendation
+
+Formula:
+
+```text
+score = (winrate * 0.65 + sampleBoost * 0.35) - lowSamplePenalty
+```
+
+Current `sampleBoost` mapping:
+
+- `>= 5 wins` -> `100`
+- `4 wins` -> `90`
+- `3 wins` -> `75`
+- `2 wins` -> `60`
+- `1 win` -> `40`
+
+Current `lowSamplePenalty` mapping:
+
+- `0 wins` -> `100`
+- `1 win` -> `25`
+- `2 wins` -> `10`
+- `>= 3 wins` -> `0`
+
+Final score is:
+
+- rounded to 1 decimal
+- clamped to `0.0..100.0`
+
+Important current limitation:
+
+- "first completed item" is an approximation based on final inventory slots, not an actual item purchase timeline
+
+## 13. Current scoring formula
 
 Current scoring implementation is in:
 
@@ -488,7 +578,7 @@ Final score is:
 - rounded to 1 decimal
 - clamped to `0.0..100.0`
 
-### 12.1 Winrate
+### 13.1 Winrate
 
 Formula:
 
@@ -505,7 +595,7 @@ Weight:
 
 - `0.35`
 
-### 12.2 Champion comfort
+### 13.2 Champion comfort
 
 Input:
 
@@ -523,7 +613,7 @@ Weight:
 
 - `0.25`
 
-### 12.3 KDA score
+### 13.3 KDA score
 
 Input:
 
@@ -540,7 +630,7 @@ Weight:
 
 - `0.15`
 
-### 12.4 CS and gold score
+### 13.4 CS and gold score
 
 Inputs:
 
@@ -573,7 +663,7 @@ Weight:
 
 - `0.10`
 
-### 12.5 Recent performance score
+### 13.5 Recent performance score
 
 Inputs:
 
@@ -595,7 +685,7 @@ Weight:
 
 - `0.10`
 
-### 12.6 Global fallback score
+### 13.6 Global fallback score
 
 Current constant:
 
@@ -605,7 +695,7 @@ Weight:
 
 - `0.05`
 
-### 12.7 Low sample penalty
+### 13.7 Low sample penalty
 
 Current penalty mapping:
 
@@ -617,7 +707,7 @@ Current penalty mapping:
 
 This penalty is subtracted after the weighted score is calculated.
 
-## 13. Current confidence logic
+## 14. Current confidence logic
 
 Current confidence mapping:
 
@@ -626,7 +716,7 @@ Current confidence mapping:
 - `3..6 games` -> `MEDIUM`
 - `>= 7 games` -> `HIGH`
 
-## 14. Current recommendation status logic
+## 15. Current recommendation status logic
 
 Current status mapping:
 
@@ -647,7 +737,7 @@ Possible status values:
 - `AVOID`
 - `NO_DATA`
 
-## 15. Important current limitations
+## 16. Important current limitations
 
 These are current implementation realities, not bugs unless we decide they are unacceptable:
 
@@ -660,7 +750,7 @@ These are current implementation realities, not bugs unless we decide they are u
 - no patch filtering yet
 - no recency weighting stored in DB yet
 
-## 16. Rules most likely to change later
+## 17. Rules most likely to change later
 
 These are the highest-probability future edits:
 
@@ -669,6 +759,7 @@ These are the highest-probability future edits:
 - `RECENT_MATCHUP_SAMPLE_SIZE = 5`
 - 24-hour account freshness window
 - scoring weights
+- build/rune score formula
 - low sample penalties
 - confidence thresholds
 - role/opponent fallback heuristics
@@ -676,7 +767,7 @@ These are the highest-probability future edits:
 - whether import should page through more than 100 match IDs
 - how "recent performance" is computed once full stat recalculation is wired
 
-## 17. Current code references
+## 18. Current code references
 
 Main files for these rules:
 
@@ -685,5 +776,6 @@ Main files for these rules:
 - [RecalculatePersonalMatchupStatsUseCase.kt](</C:/Users/errmi/Documents/New project/backend/src/main/kotlin/com/comfortpick/application/usecase/RecalculatePersonalMatchupStatsUseCase.kt>)
 - [GetProfileDashboardUseCase.kt](</C:/Users/errmi/Documents/New project/backend/src/main/kotlin/com/comfortpick/application/usecase/GetProfileDashboardUseCase.kt>)
 - [GetPersonalMatchupDetailUseCase.kt](</C:/Users/errmi/Documents/New project/backend/src/main/kotlin/com/comfortpick/application/usecase/GetPersonalMatchupDetailUseCase.kt>)
+- [BuildRuneAnalysisService.kt](</C:/Users/errmi/Documents/New project/backend/src/main/kotlin/com/comfortpick/domain/service/BuildRuneAnalysisService.kt>)
 - [PlayerMatchupExtractor.kt](</C:/Users/errmi/Documents/New project/backend/src/main/kotlin/com/comfortpick/application/service/PlayerMatchupExtractor.kt>)
 - [RecommendationScoringService.kt](</C:/Users/errmi/Documents/New project/backend/src/main/kotlin/com/comfortpick/domain/service/RecommendationScoringService.kt>)

@@ -150,6 +150,20 @@ class ProfileController(
                     totalDamageToChampions = it.totalDamageToChampions,
                 )
             },
+            build = PersonalBuildRecommendationResponse(
+                firstCompletedItemId = result.build.firstCompletedItemId,
+                firstCompletedItemGames = result.build.firstCompletedItemGames,
+                itemSet = result.build.itemSet,
+                itemSetGames = result.build.itemSetGames,
+                score = result.build.score,
+            ),
+            runes = PersonalRuneRecommendationResponse(
+                primaryRuneId = result.runes.primaryRuneId,
+                primaryRuneGames = result.runes.primaryRuneGames,
+                secondaryRuneId = result.runes.secondaryRuneId,
+                secondaryRuneGames = result.runes.secondaryRuneGames,
+                score = result.runes.score,
+            ),
         )
     }
 }
@@ -225,6 +239,8 @@ data class PersonalMatchupDetailResponse(
     val reasoning: String,
     val lastUpdatedAt: LocalDateTime?,
     val recentGames: List<PersonalMatchupRecentGameResponse>,
+    val build: PersonalBuildRecommendationResponse,
+    val runes: PersonalRuneRecommendationResponse,
 )
 
 data class PersonalMatchupRecentGameResponse(
@@ -237,4 +253,20 @@ data class PersonalMatchupRecentGameResponse(
     val totalCs: Int?,
     val goldEarned: Int?,
     val totalDamageToChampions: Int?,
+)
+
+data class PersonalBuildRecommendationResponse(
+    val firstCompletedItemId: Int?,
+    val firstCompletedItemGames: Int,
+    val itemSet: String?,
+    val itemSetGames: Int,
+    val score: Double?,
+)
+
+data class PersonalRuneRecommendationResponse(
+    val primaryRuneId: Int?,
+    val primaryRuneGames: Int,
+    val secondaryRuneId: Int?,
+    val secondaryRuneGames: Int,
+    val score: Double?,
 )

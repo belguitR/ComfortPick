@@ -11,10 +11,10 @@ Read these files first:
 
 ## Current status
 
-- Tasks 0 through 10 are implemented locally.
+- Tasks 0 through 11 are implemented locally.
 - Tasks 0 through 8 are already pushed on `origin/main`.
 - Check `git status` and `git log` before claiming remote state for the latest task.
-- Current next planned backend task: Task 11, build and rune analysis.
+- Current next planned task: Task 12, frontend summoner search flow.
 
 ## Product rule
 
@@ -156,6 +156,21 @@ Current rule:
   - then alphabetical `role`
 - recent games are limited to the latest `5` stored `player_matchups` rows for the selected role
 - missing stored matchup data returns a `200` no-data response, not a `404`
+
+## Current build and rune analysis
+
+Implemented in:
+
+- [GetPersonalMatchupDetailUseCase.kt](</C:/Users/errmi/Documents/New project/backend/src/main/kotlin/com/comfortpick/application/usecase/GetPersonalMatchupDetailUseCase.kt>)
+- [BuildRuneAnalysisService.kt](</C:/Users/errmi/Documents/New project/backend/src/main/kotlin/com/comfortpick/domain/service/BuildRuneAnalysisService.kt>)
+
+Current rule:
+
+- build/rune recommendations are returned inside the matchup detail endpoint
+- analysis uses only stored `player_matchups` for the selected champion pair and role
+- only winning games are considered
+- empty recommendations are returned when there are no winning games
+- `firstCompletedItemId` is currently approximated from the first non-zero final inventory slot, not purchase timeline data
 
 ## Current opponent detection
 

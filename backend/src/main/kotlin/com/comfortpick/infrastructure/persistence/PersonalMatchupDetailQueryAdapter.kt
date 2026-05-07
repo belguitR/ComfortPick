@@ -1,6 +1,7 @@
 package com.comfortpick.infrastructure.persistence
 
 import com.comfortpick.application.port.out.PersonalMatchupDetailQuery
+import com.comfortpick.application.port.out.StoredBuildRuneSample
 import com.comfortpick.application.port.out.StoredPersonalMatchupDetail
 import com.comfortpick.application.port.out.StoredRecentMatchupGame
 import com.comfortpick.domain.model.ConfidenceLevel
@@ -32,12 +33,14 @@ class PersonalMatchupDetailQueryAdapter(
                 .thenBy { it.role },
         ).firstOrNull() ?: return null
 
-        val recentGames = playerMatchupRepository.findAllByRiotAccountIdAndEnemyChampionIdAndUserChampionIdAndRole(
+        val matchingRoleGames = playerMatchupRepository.findAllByRiotAccountIdAndEnemyChampionIdAndUserChampionIdAndRole(
             riotAccountId = summonerId,
             enemyChampionId = enemyChampionId,
             userChampionId = userChampionId,
             role = selectedStat.role,
-        ).sortedWith(
+        )
+
+        val recentGames = matchingRoleGames.sortedWith(
             compareByDescending<com.comfortpick.infrastructure.persistence.entity.PlayerMatchupEntity> { it.match.gameCreation }
                 .thenByDescending { it.createdAt },
         ).take(RECENT_GAMES_LIMIT)
@@ -72,6 +75,21 @@ class PersonalMatchupDetailQueryAdapter(
             confidence = ConfidenceLevel.valueOf(selectedStat.confidence),
             updatedAt = selectedStat.updatedAt,
             recentGames = recentGames,
+            buildRuneSamples = matchingRoleGames.map { matchup ->
+                StoredBuildRuneSample(
+                    win = matchup.win,
+                    items = listOf(
+                        matchup.item0,
+                        matchup.item1,
+                        matchup.item2,
+                        matchup.item3,
+                        matchup.item4,
+                        matchup.item5,
+                    ),
+                    primaryRuneId = matchup.primaryRuneId,
+                    secondaryRuneId = matchup.secondaryRuneId,
+                )
+            },
         )
     }
 

@@ -183,8 +183,8 @@ class ProfileControllerIntegrationTest {
         val middleMatchTwo = saveMatch("EUW1_MID_2", now.minusDays(1))
 
         savePlayerMatchup(account, topMatch, userChampionId = 103, enemyChampionId = 238, role = "TOP", createdAt = now.minusDays(5), win = false, kills = 1, deaths = 5, assists = 2)
-        savePlayerMatchup(account, middleMatchOne, userChampionId = 103, enemyChampionId = 238, role = "MIDDLE", createdAt = now.minusDays(4), win = true, kills = 9, deaths = 2, assists = 7)
-        savePlayerMatchup(account, middleMatchTwo, userChampionId = 103, enemyChampionId = 238, role = "MIDDLE", createdAt = now.minusDays(1), win = false, kills = 3, deaths = 4, assists = 5)
+        savePlayerMatchup(account, middleMatchOne, userChampionId = 103, enemyChampionId = 238, role = "MIDDLE", createdAt = now.minusDays(4), win = true, kills = 9, deaths = 2, assists = 7, item0 = 6655, item1 = 3020, primaryRuneId = 8112, secondaryRuneId = 8226)
+        savePlayerMatchup(account, middleMatchTwo, userChampionId = 103, enemyChampionId = 238, role = "MIDDLE", createdAt = now.minusDays(1), win = false, kills = 3, deaths = 4, assists = 5, item0 = 3157, item1 = 3020, primaryRuneId = 8214, secondaryRuneId = 8226)
 
         saveStat(account, enemyChampionId = 238, userChampionId = 103, role = "TOP", games = 3, wins = 1, personalScore = 41.0, confidence = "MEDIUM", updatedAt = now.minusHours(9))
         saveStat(account, enemyChampionId = 238, userChampionId = 103, role = "MIDDLE", games = 8, wins = 6, personalScore = 84.0, confidence = "HIGH", updatedAt = now.minusHours(2))
@@ -200,6 +200,10 @@ class ProfileControllerIntegrationTest {
                 jsonPath("$.recentGames", hasSize<Any>(2))
                 jsonPath("$.recentGames[0].riotMatchId", equalTo("EUW1_MID_2"))
                 jsonPath("$.recentGames[1].riotMatchId", equalTo("EUW1_MID_1"))
+                jsonPath("$.build.firstCompletedItemId", equalTo(6655))
+                jsonPath("$.build.itemSet", equalTo("6655>3020>3100>3089>4645>3135"))
+                jsonPath("$.runes.primaryRuneId", equalTo(8112))
+                jsonPath("$.runes.secondaryRuneId", equalTo(8226))
             }
 
         verifyNoInteractions(riotApiPort)
@@ -216,6 +220,8 @@ class ProfileControllerIntegrationTest {
                 jsonPath("$.status", equalTo("NO_DATA"))
                 jsonPath("$.reasoning", equalTo("No personal data yet for this champion matchup."))
                 jsonPath("$.recentGames", hasSize<Any>(0))
+                jsonPath("$.build.firstCompletedItemId", nullValue())
+                jsonPath("$.runes.primaryRuneId", nullValue())
             }
 
         verifyNoInteractions(riotApiPort)
@@ -293,6 +299,15 @@ class ProfileControllerIntegrationTest {
         kills: Int = 8,
         deaths: Int = 2,
         assists: Int = 6,
+        item0: Int? = 1056,
+        item1: Int? = 3020,
+        item2: Int? = 3100,
+        item3: Int? = 3089,
+        item4: Int? = 4645,
+        item5: Int? = 3135,
+        item6: Int? = 3363,
+        primaryRuneId: Int? = 8112,
+        secondaryRuneId: Int? = 8226,
     ) {
         playerMatchupRepository.save(
             PlayerMatchupEntity(
@@ -309,15 +324,15 @@ class ProfileControllerIntegrationTest {
                 totalCs = 185,
                 goldEarned = 11800,
                 totalDamageToChampions = 24000,
-                item0 = 1056,
-                item1 = 3020,
-                item2 = 3100,
-                item3 = 3089,
-                item4 = 4645,
-                item5 = 3135,
-                item6 = 3363,
-                primaryRuneId = 8112,
-                secondaryRuneId = 8226,
+                item0 = item0,
+                item1 = item1,
+                item2 = item2,
+                item3 = item3,
+                item4 = item4,
+                item5 = item5,
+                item6 = item6,
+                primaryRuneId = primaryRuneId,
+                secondaryRuneId = secondaryRuneId,
                 createdAt = createdAt,
             ),
         )

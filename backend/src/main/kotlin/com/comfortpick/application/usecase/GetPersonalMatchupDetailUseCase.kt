@@ -2,6 +2,10 @@ package com.comfortpick.application.usecase
 
 import com.comfortpick.application.port.out.PersonalMatchupDetailQuery
 import com.comfortpick.application.port.out.RiotAccountStore
+import com.comfortpick.domain.service.BuildRecommendation
+import com.comfortpick.domain.service.BuildRuneAnalysisService
+import com.comfortpick.domain.service.BuildRuneSample
+import com.comfortpick.domain.service.RuneRecommendation
 import com.comfortpick.domain.model.ConfidenceLevel
 import com.comfortpick.domain.model.RecommendationStatus
 import com.comfortpick.domain.service.RecommendationScoringService
@@ -14,6 +18,7 @@ class GetPersonalMatchupDetailUseCase(
     private val riotAccountStore: RiotAccountStore,
     private val personalMatchupDetailQuery: PersonalMatchupDetailQuery,
     private val recommendationScoringService: RecommendationScoringService,
+    private val buildRuneAnalysisService: BuildRuneAnalysisService,
 ) {
     fun execute(command: GetPersonalMatchupDetailCommand): GetPersonalMatchupDetailResult {
         riotAccountStore.findById(command.summonerId)
@@ -42,12 +47,24 @@ class GetPersonalMatchupDetailUseCase(
             reasoning = "No personal data yet for this champion matchup.",
             lastUpdatedAt = null,
             recentGames = emptyList(),
+            build = BuildRecommendation.empty(),
+            runes = RuneRecommendation.empty(),
         )
 
         val status = recommendationScoringService.calculateStatus(
             score = detail.personalScore,
             confidence = detail.confidence,
             games = detail.games,
+        )
+        val buildRuneAnalysis = buildRuneAnalysisService.analyze(
+            detail.buildRuneSamples.map {
+                BuildRuneSample(
+                    win = it.win,
+                    items = it.items,
+                    primaryRuneId = it.primaryRuneId,
+                    secondaryRuneId = it.secondaryRuneId,
+                )
+            },
         )
 
         return GetPersonalMatchupDetailResult(
@@ -87,6 +104,8 @@ class GetPersonalMatchupDetailUseCase(
                     totalDamageToChampions = it.totalDamageToChampions,
                 )
             },
+            build = buildRuneAnalysis.build,
+            runes = buildRuneAnalysis.runes,
         )
     }
 
@@ -140,6 +159,8 @@ data class GetPersonalMatchupDetailResult(
     val reasoning: String,
     val lastUpdatedAt: LocalDateTime?,
     val recentGames: List<PersonalMatchupRecentGame>,
+    val build: BuildRecommendation,
+    val runes: RuneRecommendation,
 )
 
 data class PersonalMatchupRecentGame(

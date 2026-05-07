@@ -332,6 +332,8 @@ Acceptance criteria:
 
 ## Task 11 - Build and Rune Analysis
 
+Status: DONE
+
 Goal: Add first-version build and rune recommendations from personal wins.
 
 Application scope:

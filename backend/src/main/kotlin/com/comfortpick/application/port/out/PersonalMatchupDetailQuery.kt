@@ -29,6 +29,7 @@ data class StoredPersonalMatchupDetail(
     val confidence: ConfidenceLevel,
     val updatedAt: LocalDateTime,
     val recentGames: List<StoredRecentMatchupGame>,
+    val buildRuneSamples: List<StoredBuildRuneSample>,
 )
 
 data class StoredRecentMatchupGame(
@@ -41,4 +42,11 @@ data class StoredRecentMatchupGame(
     val totalCs: Int?,
     val goldEarned: Int?,
     val totalDamageToChampions: Int?,
+)
+
+data class StoredBuildRuneSample(
+    val win: Boolean,
+    val items: List<Int?>,
+    val primaryRuneId: Int?,
+    val secondaryRuneId: Int?,
 )
