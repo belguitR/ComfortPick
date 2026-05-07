@@ -26,11 +26,11 @@ Implemented today:
 - Task 6: enemy lane opponent detection
 - Task 7: matchup stats recalculation
 - Task 8: personal counters endpoint
+- Task 9: profile dashboard endpoint
+- Task 10: matchup detail endpoint
 
 Not implemented yet:
 
-- profile dashboard
-- matchup detail endpoint
 - build/rune recommendation endpoint logic
 
 That means some business logic below is already active in the running app, and some is implemented as domain logic but not yet wired into an endpoint.
@@ -310,7 +310,159 @@ So yes, the recommendation should be based on the whole relevant matchup history
 
 It should not be based only on the latest API response once stats recalculation is wired.
 
-## 10. Current scoring formula
+## 10. Profile dashboard logic
+
+Current profile dashboard endpoint:
+
+- `GET /api/profiles/{summonerId}`
+
+Current endpoint rule:
+
+- read only from:
+  - `riot_accounts`
+  - `player_matchups`
+  - `personal_matchup_stats`
+- do not call Riot API
+- return dashboard data for an existing stored summoner even when no analysis has been imported yet
+
+Current returned fields:
+
+- `summoner`
+  - internal id
+  - `gameName`
+  - `tagLine`
+  - `region`
+- `analyzedMatches`
+- `mainRole`
+- `mostPlayedChampions`
+- `bestCounters`
+- `worstMatchups`
+- `lastUpdateAt`
+
+Current field derivation:
+
+- `analyzedMatches`
+  - total count of stored `player_matchups` rows for the summoner
+- `mainRole`
+  - most frequent `role` across stored `player_matchups`
+  - tie-breaker is alphabetical role ordering
+- `mostPlayedChampions`
+  - top `5` `userChampionId` values by stored `player_matchups` count
+  - tie-breaker is lower `championId` first
+- `bestCounters`
+  - top `5` rows from stored `personal_matchup_stats`
+  - sorted by:
+    - `personalScore` descending
+    - `games` descending
+    - `userChampionId` ascending
+- `worstMatchups`
+  - bottom `5` rows from stored `personal_matchup_stats`
+  - sorted by:
+    - `personalScore` ascending
+    - `games` descending
+    - `userChampionId` ascending
+- `lastUpdateAt`
+  - max of:
+    - latest `personal_matchup_stats.updatedAt`
+    - latest `player_matchups.createdAt`
+  - `null` when the summoner has no stored analysis data yet
+
+Current empty dashboard behavior:
+
+- if the stored summoner exists but has no `player_matchups` and no `personal_matchup_stats`:
+  - `analyzedMatches = 0`
+  - `mainRole = null`
+  - `mostPlayedChampions = []`
+  - `bestCounters = []`
+  - `worstMatchups = []`
+  - `lastUpdateAt = null`
+
+## 11. Matchup detail logic
+
+Current matchup detail endpoint:
+
+- `GET /api/profiles/{summonerId}/enemies/{enemyChampionId}/counters/{userChampionId}`
+
+Current endpoint rule:
+
+- read only from stored DB data
+- do not call Riot API
+- return one detailed matchup view for the requested:
+  - summoner
+  - enemy champion
+  - user champion
+
+Current detail selection rule:
+
+- `personal_matchup_stats` is queried for all rows matching:
+  - `summonerId`
+  - `enemyChampionId`
+  - `userChampionId`
+- if multiple rows exist because the same champion pair was played in multiple roles:
+  - choose the row with:
+    - highest `personalScore`
+    - then highest `games`
+    - then alphabetical `role`
+
+Current returned fields:
+
+- `hasData`
+- `enemyChampionId`
+- `userChampionId`
+- `role`
+- `games`
+- `wins`
+- `losses`
+- `winrate`
+- `averageKda`
+- `averageCs`
+- `averageGold`
+- `averageDamage`
+- `personalScore`
+- `confidence`
+- `status`
+- `reasoning`
+- `lastUpdatedAt`
+- `recentGames`
+
+Current recent games rule:
+
+- recent games are loaded from stored `player_matchups`
+- only rows matching the selected:
+  - `enemyChampionId`
+  - `userChampionId`
+  - `role`
+- ordered by:
+  - `match.gameCreation` descending
+  - then `player_matchups.createdAt` descending
+- limited to the latest `5` games
+
+Current no-data behavior:
+
+- if the summoner exists but no stored matchup stats exist for the requested champion pair:
+  - return `200`
+  - `hasData = false`
+  - `status = NO_DATA`
+  - `confidence = NO_DATA`
+  - `reasoning = "No personal data yet for this champion matchup."`
+  - `recentGames = []`
+
+Current reasoning text mapping:
+
+- `BEST_PICK`
+  - `"Strong personal matchup: {games} games, {winrate}% win rate, {kda} KDA, and {confidence} confidence."`
+- `GOOD_PICK`
+  - `"Positive personal results: {games} games, {winrate}% win rate, {kda} KDA, and {confidence} confidence."`
+- `OK_PICK`
+  - `"Playable but not dominant: {games} games, {winrate}% win rate, {kda} KDA, and {confidence} confidence."`
+- `LOW_DATA`
+  - `"Promising but low-confidence: only {games} games, {winrate}% win rate, and {kda} KDA."`
+- `AVOID`
+  - `"This matchup has been poor for you: {games} games, {winrate}% win rate, and {kda} KDA."`
+- `NO_DATA`
+  - `"No personal data yet for this champion matchup."`
+
+## 12. Current scoring formula
 
 Current scoring implementation is in:
 
@@ -336,7 +488,7 @@ Final score is:
 - rounded to 1 decimal
 - clamped to `0.0..100.0`
 
-### 10.1 Winrate
+### 12.1 Winrate
 
 Formula:
 
@@ -353,7 +505,7 @@ Weight:
 
 - `0.35`
 
-### 10.2 Champion comfort
+### 12.2 Champion comfort
 
 Input:
 
@@ -371,7 +523,7 @@ Weight:
 
 - `0.25`
 
-### 10.3 KDA score
+### 12.3 KDA score
 
 Input:
 
@@ -388,7 +540,7 @@ Weight:
 
 - `0.15`
 
-### 10.4 CS and gold score
+### 12.4 CS and gold score
 
 Inputs:
 
@@ -421,7 +573,7 @@ Weight:
 
 - `0.10`
 
-### 10.5 Recent performance score
+### 12.5 Recent performance score
 
 Inputs:
 
@@ -443,7 +595,7 @@ Weight:
 
 - `0.10`
 
-### 10.6 Global fallback score
+### 12.6 Global fallback score
 
 Current constant:
 
@@ -453,7 +605,7 @@ Weight:
 
 - `0.05`
 
-### 10.7 Low sample penalty
+### 12.7 Low sample penalty
 
 Current penalty mapping:
 
@@ -465,7 +617,7 @@ Current penalty mapping:
 
 This penalty is subtracted after the weighted score is calculated.
 
-## 11. Current confidence logic
+## 13. Current confidence logic
 
 Current confidence mapping:
 
@@ -474,7 +626,7 @@ Current confidence mapping:
 - `3..6 games` -> `MEDIUM`
 - `>= 7 games` -> `HIGH`
 
-## 12. Current recommendation status logic
+## 14. Current recommendation status logic
 
 Current status mapping:
 
@@ -495,11 +647,11 @@ Possible status values:
 - `AVOID`
 - `NO_DATA`
 
-## 13. Important current limitations
+## 15. Important current limitations
 
 These are current implementation realities, not bugs unless we decide they are unacceptable:
 
-- scoring logic exists but is not yet powering a public counter endpoint
+- scoring is powering public recommendations, but the formula is still heuristic MVP logic
 - import currently looks at only the latest `100` Riot match IDs per request
 - role/opponent detection is same-role only and still simple
 - no retry policy for Riot rate limiting yet
@@ -508,11 +660,12 @@ These are current implementation realities, not bugs unless we decide they are u
 - no patch filtering yet
 - no recency weighting stored in DB yet
 
-## 14. Rules most likely to change later
+## 16. Rules most likely to change later
 
 These are the highest-probability future edits:
 
 - `RECENT_MATCH_COUNT = 100`
+- `RECENT_GAMES_LIMIT = 5`
 - `RECENT_MATCHUP_SAMPLE_SIZE = 5`
 - 24-hour account freshness window
 - scoring weights
@@ -523,12 +676,14 @@ These are the highest-probability future edits:
 - whether import should page through more than 100 match IDs
 - how "recent performance" is computed once full stat recalculation is wired
 
-## 15. Current code references
+## 17. Current code references
 
 Main files for these rules:
 
 - [SearchSummonerUseCase.kt](</C:/Users/errmi/Documents/New project/backend/src/main/kotlin/com/comfortpick/application/usecase/SearchSummonerUseCase.kt>)
 - [ImportMatchHistoryUseCase.kt](</C:/Users/errmi/Documents/New project/backend/src/main/kotlin/com/comfortpick/application/usecase/ImportMatchHistoryUseCase.kt>)
 - [RecalculatePersonalMatchupStatsUseCase.kt](</C:/Users/errmi/Documents/New project/backend/src/main/kotlin/com/comfortpick/application/usecase/RecalculatePersonalMatchupStatsUseCase.kt>)
+- [GetProfileDashboardUseCase.kt](</C:/Users/errmi/Documents/New project/backend/src/main/kotlin/com/comfortpick/application/usecase/GetProfileDashboardUseCase.kt>)
+- [GetPersonalMatchupDetailUseCase.kt](</C:/Users/errmi/Documents/New project/backend/src/main/kotlin/com/comfortpick/application/usecase/GetPersonalMatchupDetailUseCase.kt>)
 - [PlayerMatchupExtractor.kt](</C:/Users/errmi/Documents/New project/backend/src/main/kotlin/com/comfortpick/application/service/PlayerMatchupExtractor.kt>)
 - [RecommendationScoringService.kt](</C:/Users/errmi/Documents/New project/backend/src/main/kotlin/com/comfortpick/domain/service/RecommendationScoringService.kt>)

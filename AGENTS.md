@@ -11,10 +11,10 @@ Read these files first:
 
 ## Current status
 
-- Tasks 0 through 8 are implemented locally.
-- Tasks 0 through 7 are already pushed on `origin/main`.
+- Tasks 0 through 10 are implemented locally.
+- Tasks 0 through 8 are already pushed on `origin/main`.
 - Check `git status` and `git log` before claiming remote state for the latest task.
-- Current next planned backend task: Task 9, profile dashboard endpoint.
+- Current next planned backend task: Task 11, build and rune analysis.
 
 ## Product rule
 
@@ -106,6 +106,56 @@ Current rule:
 - returns counters sorted by stored `personalScore` descending
 - derives `status` from stored score, confidence, and games
 - returns an empty list when the profile exists but has no stored counters for that enemy champion
+
+## Current profile dashboard endpoint
+
+Implemented in:
+
+- [ProfileController.kt](</C:/Users/errmi/Documents/New project/backend/src/main/kotlin/com/comfortpick/api/profile/ProfileController.kt>)
+- [GetProfileDashboardUseCase.kt](</C:/Users/errmi/Documents/New project/backend/src/main/kotlin/com/comfortpick/application/usecase/GetProfileDashboardUseCase.kt>)
+
+Endpoint:
+
+- `GET /api/profiles/{summonerId}`
+
+Current rule:
+
+- reads only from:
+  - `riot_accounts`
+  - `player_matchups`
+  - `personal_matchup_stats`
+- does not call Riot API
+- returns the stored summoner identity plus:
+  - analyzed match count
+  - main role
+  - most played champions
+  - best counters
+  - worst matchups
+  - last update timestamp
+- returns a valid empty dashboard when the profile exists but has no stored analysis yet
+
+## Current matchup detail endpoint
+
+Implemented in:
+
+- [ProfileController.kt](</C:/Users/errmi/Documents/New project/backend/src/main/kotlin/com/comfortpick/api/profile/ProfileController.kt>)
+- [GetPersonalMatchupDetailUseCase.kt](</C:/Users/errmi/Documents/New project/backend/src/main/kotlin/com/comfortpick/application/usecase/GetPersonalMatchupDetailUseCase.kt>)
+
+Endpoint:
+
+- `GET /api/profiles/{summonerId}/enemies/{enemyChampionId}/counters/{userChampionId}`
+
+Current rule:
+
+- reads only from stored DB data
+- does not call Riot API
+- returns one detailed matchup view for the requested champion pair
+- if the pair exists in multiple roles, choose the row with:
+  - highest `personalScore`
+  - then highest `games`
+  - then alphabetical `role`
+- recent games are limited to the latest `5` stored `player_matchups` rows for the selected role
+- missing stored matchup data returns a `200` no-data response, not a `404`
 
 ## Current opponent detection
 

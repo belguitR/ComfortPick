@@ -6,4 +6,11 @@ import java.util.UUID
 
 interface PlayerMatchupRepository : JpaRepository<PlayerMatchupEntity, UUID> {
     fun findAllByRiotAccountId(riotAccountId: UUID): List<PlayerMatchupEntity>
+
+    fun findAllByRiotAccountIdAndEnemyChampionIdAndUserChampionIdAndRole(
+        riotAccountId: UUID,
+        enemyChampionId: Int,
+        userChampionId: Int,
+        role: String,
+    ): List<PlayerMatchupEntity>
 }

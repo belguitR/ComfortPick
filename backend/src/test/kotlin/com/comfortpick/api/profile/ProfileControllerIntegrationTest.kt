@@ -1,13 +1,18 @@
 package com.comfortpick.api.profile
 
 import com.comfortpick.application.port.out.RiotApiPort
+import com.comfortpick.infrastructure.persistence.entity.MatchEntity
 import com.comfortpick.infrastructure.persistence.entity.PersonalMatchupStatsEntity
+import com.comfortpick.infrastructure.persistence.entity.PlayerMatchupEntity
 import com.comfortpick.infrastructure.persistence.entity.RiotAccountEntity
+import com.comfortpick.infrastructure.persistence.repository.MatchRepository
 import com.comfortpick.infrastructure.persistence.repository.PersonalMatchupStatsRepository
 import com.comfortpick.infrastructure.persistence.repository.PlayerMatchupRepository
 import com.comfortpick.infrastructure.persistence.repository.RiotAccountRepository
-import com.comfortpick.infrastructure.persistence.repository.MatchRepository
 import org.hamcrest.Matchers.equalTo
+import org.hamcrest.Matchers.hasSize
+import org.hamcrest.Matchers.nullValue
+import org.hamcrest.Matchers.startsWith
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.verifyNoInteractions
@@ -112,6 +117,110 @@ class ProfileControllerIntegrationTest {
         verifyNoInteractions(riotApiPort)
     }
 
+    @Test
+    fun `returns populated profile dashboard from stored data only`() {
+        val account = saveAccount("dashboard-puuid")
+        val now = LocalDateTime.now()
+        val firstMatch = saveMatch("EUW1_1", now.minusDays(3))
+        val secondMatch = saveMatch("EUW1_2", now.minusDays(2))
+        val thirdMatch = saveMatch("EUW1_3", now.minusDays(1))
+
+        savePlayerMatchup(account, firstMatch, userChampionId = 103, enemyChampionId = 238, role = "MIDDLE", createdAt = now.minusDays(3))
+        savePlayerMatchup(account, secondMatch, userChampionId = 103, enemyChampionId = 84, role = "MIDDLE", createdAt = now.minusDays(2))
+        savePlayerMatchup(account, thirdMatch, userChampionId = 7, enemyChampionId = 238, role = "TOP", createdAt = now.minusDays(1))
+
+        saveStat(account, enemyChampionId = 238, userChampionId = 103, role = "MIDDLE", games = 8, wins = 6, personalScore = 84.0, confidence = "HIGH", updatedAt = now.minusHours(12))
+        saveStat(account, enemyChampionId = 84, userChampionId = 7, role = "TOP", games = 5, wins = 1, personalScore = 42.0, confidence = "MEDIUM", updatedAt = now.minusHours(8))
+        saveStat(account, enemyChampionId = 126, userChampionId = 55, role = "BOTTOM", games = 4, wins = 3, personalScore = 67.0, confidence = "MEDIUM", updatedAt = now.minusHours(6))
+
+        mockMvc.get("/api/profiles/${account.id}")
+            .andExpect {
+                status { isOk() }
+                jsonPath("$.summoner.id", equalTo(account.id.toString()))
+                jsonPath("$.summoner.gameName", equalTo("Rami"))
+                jsonPath("$.analyzedMatches", equalTo(3))
+                jsonPath("$.mainRole", equalTo("MIDDLE"))
+                jsonPath("$.mostPlayedChampions", hasSize<Any>(2))
+                jsonPath("$.mostPlayedChampions[0].championId", equalTo(103))
+                jsonPath("$.mostPlayedChampions[0].games", equalTo(2))
+                jsonPath("$.bestCounters", hasSize<Any>(3))
+                jsonPath("$.bestCounters[0].userChampionId", equalTo(103))
+                jsonPath("$.bestCounters[0].personalScore", equalTo(84.0))
+                jsonPath("$.worstMatchups", hasSize<Any>(3))
+                jsonPath("$.worstMatchups[0].userChampionId", equalTo(7))
+                jsonPath("$.worstMatchups[0].personalScore", equalTo(42.0))
+                jsonPath("$.lastUpdateAt", startsWith(now.minusHours(6).toLocalDate().toString()))
+            }
+
+        verifyNoInteractions(riotApiPort)
+    }
+
+    @Test
+    fun `returns empty profile dashboard when summoner has no stored analysis yet`() {
+        val account = saveAccount("dashboard-empty-puuid")
+
+        mockMvc.get("/api/profiles/${account.id}")
+            .andExpect {
+                status { isOk() }
+                jsonPath("$.summoner.id", equalTo(account.id.toString()))
+                jsonPath("$.analyzedMatches", equalTo(0))
+                jsonPath("$.mainRole", nullValue())
+                jsonPath("$.mostPlayedChampions", hasSize<Any>(0))
+                jsonPath("$.bestCounters", hasSize<Any>(0))
+                jsonPath("$.worstMatchups", hasSize<Any>(0))
+                jsonPath("$.lastUpdateAt", nullValue())
+            }
+
+        verifyNoInteractions(riotApiPort)
+    }
+
+    @Test
+    fun `returns matchup detail with newest recent games first`() {
+        val account = saveAccount("detail-puuid")
+        val now = LocalDateTime.now()
+        val topMatch = saveMatch("EUW1_TOP", now.minusDays(5))
+        val middleMatchOne = saveMatch("EUW1_MID_1", now.minusDays(4))
+        val middleMatchTwo = saveMatch("EUW1_MID_2", now.minusDays(1))
+
+        savePlayerMatchup(account, topMatch, userChampionId = 103, enemyChampionId = 238, role = "TOP", createdAt = now.minusDays(5), win = false, kills = 1, deaths = 5, assists = 2)
+        savePlayerMatchup(account, middleMatchOne, userChampionId = 103, enemyChampionId = 238, role = "MIDDLE", createdAt = now.minusDays(4), win = true, kills = 9, deaths = 2, assists = 7)
+        savePlayerMatchup(account, middleMatchTwo, userChampionId = 103, enemyChampionId = 238, role = "MIDDLE", createdAt = now.minusDays(1), win = false, kills = 3, deaths = 4, assists = 5)
+
+        saveStat(account, enemyChampionId = 238, userChampionId = 103, role = "TOP", games = 3, wins = 1, personalScore = 41.0, confidence = "MEDIUM", updatedAt = now.minusHours(9))
+        saveStat(account, enemyChampionId = 238, userChampionId = 103, role = "MIDDLE", games = 8, wins = 6, personalScore = 84.0, confidence = "HIGH", updatedAt = now.minusHours(2))
+
+        mockMvc.get("/api/profiles/${account.id}/enemies/238/counters/103")
+            .andExpect {
+                status { isOk() }
+                jsonPath("$.hasData", equalTo(true))
+                jsonPath("$.role", equalTo("MIDDLE"))
+                jsonPath("$.games", equalTo(8))
+                jsonPath("$.status", equalTo("BEST_PICK"))
+                jsonPath("$.reasoning", equalTo("Strong personal matchup: 8 games, 75.0% win rate, 3.5 KDA, and high confidence."))
+                jsonPath("$.recentGames", hasSize<Any>(2))
+                jsonPath("$.recentGames[0].riotMatchId", equalTo("EUW1_MID_2"))
+                jsonPath("$.recentGames[1].riotMatchId", equalTo("EUW1_MID_1"))
+            }
+
+        verifyNoInteractions(riotApiPort)
+    }
+
+    @Test
+    fun `returns clear no data matchup detail when pair has no stored history`() {
+        val account = saveAccount("detail-empty-puuid")
+
+        mockMvc.get("/api/profiles/${account.id}/enemies/238/counters/103")
+            .andExpect {
+                status { isOk() }
+                jsonPath("$.hasData", equalTo(false))
+                jsonPath("$.status", equalTo("NO_DATA"))
+                jsonPath("$.reasoning", equalTo("No personal data yet for this champion matchup."))
+                jsonPath("$.recentGames", hasSize<Any>(0))
+            }
+
+        verifyNoInteractions(riotApiPort)
+    }
+
     private fun saveAccount(puuid: String): RiotAccountEntity =
         riotAccountRepository.save(
             RiotAccountEntity(
@@ -129,17 +238,19 @@ class ProfileControllerIntegrationTest {
         account: RiotAccountEntity,
         enemyChampionId: Int,
         userChampionId: Int,
+        role: String = "MIDDLE",
         games: Int,
         wins: Int,
         personalScore: Double,
         confidence: String,
+        updatedAt: LocalDateTime = LocalDateTime.now(),
     ) {
         personalMatchupStatsRepository.save(
             PersonalMatchupStatsEntity(
                 riotAccount = account,
                 enemyChampionId = enemyChampionId,
                 userChampionId = userChampionId,
-                role = "MIDDLE",
+                role = role,
                 games = games,
                 wins = wins,
                 losses = games - wins,
@@ -150,7 +261,64 @@ class ProfileControllerIntegrationTest {
                 averageDamage = 22000.0,
                 personalScore = personalScore,
                 confidence = confidence,
-                updatedAt = LocalDateTime.now(),
+                updatedAt = updatedAt,
+            ),
+        )
+    }
+
+    private fun saveMatch(
+        riotMatchId: String,
+        gameCreation: LocalDateTime,
+    ): MatchEntity =
+        matchRepository.save(
+            MatchEntity(
+                riotMatchId = riotMatchId,
+                region = "EUROPE",
+                queueId = 420,
+                gameCreation = gameCreation,
+                gameDurationSeconds = 1800,
+                patch = "15.10",
+                createdAt = gameCreation,
+            ),
+        )
+
+    private fun savePlayerMatchup(
+        account: RiotAccountEntity,
+        match: MatchEntity,
+        userChampionId: Int,
+        enemyChampionId: Int,
+        role: String,
+        createdAt: LocalDateTime,
+        win: Boolean = true,
+        kills: Int = 8,
+        deaths: Int = 2,
+        assists: Int = 6,
+    ) {
+        playerMatchupRepository.save(
+            PlayerMatchupEntity(
+                riotAccount = account,
+                match = match,
+                userPuuid = account.puuid,
+                userChampionId = userChampionId,
+                enemyChampionId = enemyChampionId,
+                role = role,
+                win = win,
+                kills = kills,
+                deaths = deaths,
+                assists = assists,
+                totalCs = 185,
+                goldEarned = 11800,
+                totalDamageToChampions = 24000,
+                item0 = 1056,
+                item1 = 3020,
+                item2 = 3100,
+                item3 = 3089,
+                item4 = 4645,
+                item5 = 3135,
+                item6 = 3363,
+                primaryRuneId = 8112,
+                secondaryRuneId = 8226,
+                createdAt = createdAt,
             ),
         )
     }

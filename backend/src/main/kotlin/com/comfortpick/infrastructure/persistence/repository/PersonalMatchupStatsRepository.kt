@@ -11,4 +11,10 @@ interface PersonalMatchupStatsRepository : JpaRepository<PersonalMatchupStatsEnt
         riotAccountId: UUID,
         enemyChampionId: Int,
     ): List<PersonalMatchupStatsEntity>
+
+    fun findAllByRiotAccountIdAndEnemyChampionIdAndUserChampionId(
+        riotAccountId: UUID,
+        enemyChampionId: Int,
+        userChampionId: Int,
+    ): List<PersonalMatchupStatsEntity>
 }

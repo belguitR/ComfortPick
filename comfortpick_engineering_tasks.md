@@ -279,6 +279,8 @@ Acceptance criteria:
 
 ## Task 9 - Profile Dashboard Endpoint
 
+Status: DONE
+
 Goal: Provide a useful profile overview from stored data.
 
 Application scope:
@@ -303,6 +305,8 @@ Acceptance criteria:
 - API integration tests cover populated and empty profile states.
 
 ## Task 10 - Matchup Detail Endpoint
+
+Status: DONE
 
 Goal: Show detailed reasoning for one user champion into one enemy champion.
 
