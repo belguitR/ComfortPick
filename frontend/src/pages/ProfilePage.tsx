@@ -305,7 +305,14 @@ export function ProfilePage() {
             <ul className="stack-list">
               {dashboard.mostPlayedChampions.map((entry) => (
                 <li key={entry.championId}>
-                  <strong>{getChampionById(entry.championId)?.name ?? `Champion ${entry.championId}`}</strong>
+                  <strong className="champion-cell">
+                    <img
+                      className="champion-avatar"
+                      src={getChampionById(entry.championId)?.image}
+                      alt=""
+                    />
+                    <span>{getChampionById(entry.championId)?.name ?? `Champion ${entry.championId}`}</span>
+                  </strong>
                   <span>{entry.games} games</span>
                 </li>
               ))}

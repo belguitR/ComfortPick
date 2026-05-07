@@ -6,6 +6,9 @@ import { getEnemyChampionCounters } from '../lib/api/comfortpick'
 import type { PersonalCounterResponse } from '../lib/api/comfortpick'
 import { CHAMPIONS, getChampionById, resolveChampionQuery } from '../lib/champions'
 
+const SCORE_FORMULA_TOOLTIP =
+  'Score = winrate x 0.35 + champion comfort x 0.25 + KDA x 0.15 + CS/gold x 0.10 + recent performance x 0.10 + fallback x 0.05 - low sample penalty.'
+
 export function EnemyCountersPage() {
   const navigate = useNavigate()
   const { summonerId, enemyChampionId } = useParams<{
@@ -24,8 +27,24 @@ export function EnemyCountersPage() {
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [counters, setCounters] = useState<PersonalCounterResponse[]>([])
-  const [enemyChampionInput, setEnemyChampionInput] = useState(enemyChampionId ?? '')
+  const [enemyChampionInput, setEnemyChampionInput] = useState('')
   const [loadedKey, setLoadedKey] = useState<string | null>(null)
+  const [showScoreFormula, setShowScoreFormula] = useState(false)
+
+  useEffect(() => {
+    if (parsedEnemyChampionId == null) {
+      return
+    }
+
+    const champion = getChampionById(parsedEnemyChampionId)
+    const timeoutId = window.setTimeout(() => {
+      setEnemyChampionInput(champion?.name ?? '')
+    }, 0)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [parsedEnemyChampionId])
 
   useEffect(() => {
     if (!summonerId || parsedEnemyChampionId == null) {
@@ -60,7 +79,7 @@ export function EnemyCountersPage() {
       <section className="profile-state">
         <p className="section-label">Counters error</p>
         <h1>Could not load counters</h1>
-        <p className="state-copy">The enemy champion id in the route is missing or invalid.</p>
+        <p className="state-copy">The enemy champion in the route is missing or invalid.</p>
         <Link className="inline-link" to={summonerId ? `/profiles/${summonerId}` : '/'}>
           Back to profile
         </Link>
@@ -146,7 +165,7 @@ export function EnemyCountersPage() {
         <section className="empty-panel">
           <p className="section-label">No stored counters</p>
           <h2>No personal matchup data exists yet for {enemyChampionName}.</h2>
-          <p className="state-copy">Import more matches or try another enemy champion id.</p>
+          <p className="state-copy">Import more matches or try another enemy champion.</p>
         </section>
       )}
 
@@ -156,17 +175,38 @@ export function EnemyCountersPage() {
             <h2>Personal counter ranking</h2>
             <p>Sorted by stored personal score from the backend.</p>
           </div>
+          <div
+            id="score-formula-panel"
+            className={`score-formula-panel ${showScoreFormula ? 'score-formula-visible' : ''}`}
+            role="note"
+            aria-label="Score formula explanation"
+          >
+            <strong>How score is calculated</strong>
+            <p>{SCORE_FORMULA_TOOLTIP}</p>
+          </div>
 
           <div className="counter-table" role="table" aria-label="Enemy champion counters">
             <div className="counter-row counter-head" role="row">
               <span role="columnheader">Champion</span>
               <span role="columnheader">Role</span>
-              <span role="columnheader">Score</span>
+              <span role="columnheader">
+                <button
+                  className="score-help-button"
+                  type="button"
+                  onMouseEnter={() => setShowScoreFormula(true)}
+                  onMouseLeave={() => setShowScoreFormula(false)}
+                  onFocus={() => setShowScoreFormula(true)}
+                  onBlur={() => setShowScoreFormula(false)}
+                  aria-expanded={showScoreFormula}
+                  aria-controls="score-formula-panel"
+                >
+                  Score*
+                </button>
+              </span>
               <span role="columnheader">Games</span>
               <span role="columnheader">Winrate</span>
               <span role="columnheader">KDA</span>
               <span role="columnheader">Confidence</span>
-              <span role="columnheader">Status</span>
             </div>
 
             {counters.map((counter) => (
@@ -180,7 +220,14 @@ export function EnemyCountersPage() {
                   role="cell"
                   to={`/profiles/${summonerId}/enemies/${counter.enemyChampionId}/counters/${counter.userChampionId}`}
                 >
-                  {getChampionById(counter.userChampionId)?.name ?? `Champion ${counter.userChampionId}`}
+                  <span className="champion-cell">
+                    <img
+                      className="champion-avatar"
+                      src={getChampionById(counter.userChampionId)?.image}
+                      alt=""
+                    />
+                    <span>{getChampionById(counter.userChampionId)?.name ?? `Champion ${counter.userChampionId}`}</span>
+                  </span>
                 </Link>
                 <span role="cell">{counter.role}</span>
                 <span role="cell">{counter.personalScore.toFixed(1)}</span>
@@ -188,7 +235,6 @@ export function EnemyCountersPage() {
                 <span role="cell">{counter.winrate.toFixed(1)}%</span>
                 <span role="cell">{counter.averageKda.toFixed(2)}</span>
                 <span role="cell">{formatConfidence(counter.confidence)}</span>
-                <span role="cell">{formatStatus(counter.status)}</span>
               </div>
             ))}
           </div>
@@ -199,10 +245,6 @@ export function EnemyCountersPage() {
 }
 
 function formatConfidence(value: PersonalCounterResponse['confidence']): string {
-  return value.toLowerCase().replace('_', ' ')
-}
-
-function formatStatus(value: PersonalCounterResponse['status']): string {
   return value.toLowerCase().replace('_', ' ')
 }
 

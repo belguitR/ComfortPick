@@ -4,6 +4,8 @@ import { ApiError } from '../lib/api/client'
 import { getPersonalMatchupDetail } from '../lib/api/comfortpick'
 import type { PersonalMatchupDetailResponse } from '../lib/api/comfortpick'
 import { getChampionById } from '../lib/champions'
+import { getItemById, parseItemSet } from '../lib/items'
+import { getRuneById } from '../lib/runes'
 
 export function MatchupDetailPage() {
   const { summonerId, enemyChampionId, userChampionId } = useParams<{
@@ -107,6 +109,28 @@ export function MatchupDetailPage() {
     detail.runes.score != null
   const userChampionName = getChampionById(detail.userChampionId)?.name ?? `Champion ${detail.userChampionId}`
   const enemyChampionName = getChampionById(detail.enemyChampionId)?.name ?? `Champion ${detail.enemyChampionId}`
+  const firstItem = detail.build.firstCompletedItemId != null
+    ? getItemById(detail.build.firstCompletedItemId) ?? {
+        id: detail.build.firstCompletedItemId,
+        name: `Item ${detail.build.firstCompletedItemId}`,
+        image: '',
+      }
+    : null
+  const itemSet = parseItemSet(detail.build.itemSet)
+  const primaryRune = detail.runes.primaryRuneId != null
+    ? getRuneById(detail.runes.primaryRuneId) ?? {
+        id: detail.runes.primaryRuneId,
+        name: `Rune ${detail.runes.primaryRuneId}`,
+        image: '',
+      }
+    : null
+  const secondaryRune = detail.runes.secondaryRuneId != null
+    ? getRuneById(detail.runes.secondaryRuneId) ?? {
+        id: detail.runes.secondaryRuneId,
+        name: `Rune ${detail.runes.secondaryRuneId}`,
+        image: '',
+      }
+    : null
 
   return (
     <section className="profile-layout">
@@ -175,10 +199,14 @@ export function MatchupDetailPage() {
               </div>
               {hasBuildData ? (
                 <dl className="detail-list">
-                  <div><dt>First completed item</dt><dd>{detail.build.firstCompletedItemId ?? 'N/A'}</dd></div>
-                  <div><dt>Support games</dt><dd>{detail.build.firstCompletedItemGames}</dd></div>
-                  <div><dt>Item set</dt><dd>{detail.build.itemSet ?? 'N/A'}</dd></div>
-                  <div><dt>Item set games</dt><dd>{detail.build.itemSetGames}</dd></div>
+                  <div>
+                    <dt>First completed item</dt>
+                    <dd>{firstItem ? <ItemDisplay item={firstItem} /> : 'N/A'}</dd>
+                  </div>
+                  <div>
+                    <dt>Item set</dt>
+                    <dd>{itemSet.length > 0 ? <ItemSetDisplay items={itemSet} /> : 'N/A'}</dd>
+                  </div>
                   <div><dt>Build score</dt><dd>{detail.build.score?.toFixed(1) ?? 'N/A'}</dd></div>
                 </dl>
               ) : (
@@ -192,10 +220,14 @@ export function MatchupDetailPage() {
               </div>
               {hasRuneData ? (
                 <dl className="detail-list">
-                  <div><dt>Primary rune</dt><dd>{detail.runes.primaryRuneId ?? 'N/A'}</dd></div>
-                  <div><dt>Primary rune games</dt><dd>{detail.runes.primaryRuneGames}</dd></div>
-                  <div><dt>Secondary rune</dt><dd>{detail.runes.secondaryRuneId ?? 'N/A'}</dd></div>
-                  <div><dt>Secondary rune games</dt><dd>{detail.runes.secondaryRuneGames}</dd></div>
+                  <div>
+                    <dt>Primary rune</dt>
+                    <dd>{primaryRune ? <RuneDisplay rune={primaryRune} /> : 'N/A'}</dd>
+                  </div>
+                  <div>
+                    <dt>Secondary rune</dt>
+                    <dd>{secondaryRune ? <RuneDisplay rune={secondaryRune} /> : 'N/A'}</dd>
+                  </div>
                   <div><dt>Rune score</dt><dd>{detail.runes.score?.toFixed(1) ?? 'N/A'}</dd></div>
                 </dl>
               ) : (
@@ -259,4 +291,53 @@ function getDetailErrorMessage(error: unknown): string {
   }
 
   return 'Unexpected frontend error while loading matchup detail.'
+}
+
+type DisplayItem = {
+  id: number
+  name: string
+  image: string
+}
+
+type DisplayRune = {
+  id: number
+  name: string
+  image: string
+}
+
+function ItemDisplay({ item }: { item: DisplayItem }) {
+  return (
+    <span className="item-display">
+      {item.image ? (
+        <img className="item-avatar" src={item.image} alt="" />
+      ) : null}
+      <span>{item.name}</span>
+    </span>
+  )
+}
+
+function ItemSetDisplay({ items }: { items: DisplayItem[] }) {
+  return (
+    <span className="item-set-display">
+      {items.map((item) => (
+        <span key={item.id} className="item-chip">
+          {item.image ? (
+            <img className="item-avatar" src={item.image} alt="" />
+          ) : null}
+          <span>{item.name}</span>
+        </span>
+      ))}
+    </span>
+  )
+}
+
+function RuneDisplay({ rune }: { rune: DisplayRune }) {
+  return (
+    <span className="item-display">
+      {rune.image ? (
+        <img className="item-avatar" src={rune.image} alt="" />
+      ) : null}
+      <span>{rune.name}</span>
+    </span>
+  )
 }
