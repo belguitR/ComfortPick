@@ -46,6 +46,8 @@ class PlayerMatchupExtractor {
                 itemIds = userParticipant.itemIds,
                 primaryRuneId = userParticipant.primaryRuneId,
                 secondaryRuneId = userParticipant.secondaryRuneId,
+                summonerSpell1Id = userParticipant.summonerSpell1Id,
+                summonerSpell2Id = userParticipant.summonerSpell2Id,
             ),
         )
     }
@@ -102,4 +104,6 @@ data class ExtractedPlayerMatchup(
     val itemIds: List<Int>,
     val primaryRuneId: Int?,
     val secondaryRuneId: Int?,
+    val summonerSpell1Id: Int?,
+    val summonerSpell2Id: Int?,
 )

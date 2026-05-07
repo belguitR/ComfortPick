@@ -104,6 +104,8 @@ class ImportMatchHistoryUseCase(
                             itemIds = extractedMatchup.itemIds,
                             primaryRuneId = extractedMatchup.primaryRuneId,
                             secondaryRuneId = extractedMatchup.secondaryRuneId,
+                            summonerSpell1Id = extractedMatchup.summonerSpell1Id,
+                            summonerSpell2Id = extractedMatchup.summonerSpell2Id,
                             createdAt = now,
                         ),
                     )

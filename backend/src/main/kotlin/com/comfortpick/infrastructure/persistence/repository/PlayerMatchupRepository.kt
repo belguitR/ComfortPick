@@ -19,6 +19,19 @@ interface PlayerMatchupRepository : JpaRepository<PlayerMatchupEntity, UUID> {
 
     @Query(
         """
+        select pm
+        from PlayerMatchupEntity pm
+        join fetch pm.match m
+        where pm.riotAccount.id = :riotAccountId
+        order by m.gameCreation desc, pm.createdAt desc
+        """,
+    )
+    fun findRecentByRiotAccountId(
+        @Param("riotAccountId") riotAccountId: UUID,
+    ): List<PlayerMatchupEntity>
+
+    @Query(
+        """
         select pm.match.riotMatchId
         from PlayerMatchupEntity pm
         where pm.riotAccount.id = :riotAccountId

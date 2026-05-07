@@ -112,6 +112,8 @@ class PlayerMatchupExtractorTest {
             teamId = teamId,
             teamPosition = teamPosition,
             individualPosition = individualPosition,
+            summonerSpell1Id = 4,
+            summonerSpell2Id = 14,
             win = true,
             kills = 8,
             deaths = 2,

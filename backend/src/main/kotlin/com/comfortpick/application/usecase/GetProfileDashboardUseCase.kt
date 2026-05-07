@@ -32,24 +32,24 @@ class GetProfileDashboardUseCase(
                     games = it.games,
                 )
             },
-            bestCounters = snapshot.bestCounters.map {
-                DashboardCounterSummary(
-                    enemyChampionId = it.enemyChampionId,
+            latestGames = snapshot.latestGames.map {
+                DashboardRecentGame(
+                    riotMatchId = it.riotMatchId,
                     userChampionId = it.userChampionId,
                     role = it.role,
-                    games = it.games,
-                    winrate = it.winrate,
-                    personalScore = it.personalScore,
-                )
-            },
-            worstMatchups = snapshot.worstMatchups.map {
-                DashboardCounterSummary(
-                    enemyChampionId = it.enemyChampionId,
-                    userChampionId = it.userChampionId,
-                    role = it.role,
-                    games = it.games,
-                    winrate = it.winrate,
-                    personalScore = it.personalScore,
+                    win = it.win,
+                    kills = it.kills,
+                    deaths = it.deaths,
+                    assists = it.assists,
+                    totalCs = it.totalCs,
+                    goldEarned = it.goldEarned,
+                    totalDamageToChampions = it.totalDamageToChampions,
+                    itemIds = it.itemIds,
+                    primaryRuneId = it.primaryRuneId,
+                    secondaryRuneId = it.secondaryRuneId,
+                    summonerSpell1Id = it.summonerSpell1Id,
+                    summonerSpell2Id = it.summonerSpell2Id,
+                    gameCreation = it.gameCreation,
                 )
             },
             lastUpdateAt = snapshot.lastUpdateAt,
@@ -77,8 +77,7 @@ data class GetProfileDashboardResult(
     val analyzedMatches: Int,
     val mainRole: String?,
     val mostPlayedChampions: List<DashboardChampionPlayCount>,
-    val bestCounters: List<DashboardCounterSummary>,
-    val worstMatchups: List<DashboardCounterSummary>,
+    val latestGames: List<DashboardRecentGame>,
     val lastUpdateAt: LocalDateTime?,
     val sync: DashboardSyncState,
 )
@@ -95,13 +94,23 @@ data class DashboardChampionPlayCount(
     val games: Int,
 )
 
-data class DashboardCounterSummary(
-    val enemyChampionId: Int,
+data class DashboardRecentGame(
+    val riotMatchId: String,
     val userChampionId: Int,
     val role: String,
-    val games: Int,
-    val winrate: Double,
-    val personalScore: Double,
+    val win: Boolean,
+    val kills: Int,
+    val deaths: Int,
+    val assists: Int,
+    val totalCs: Int?,
+    val goldEarned: Int?,
+    val totalDamageToChampions: Int?,
+    val itemIds: List<Int>,
+    val primaryRuneId: Int?,
+    val secondaryRuneId: Int?,
+    val summonerSpell1Id: Int?,
+    val summonerSpell2Id: Int?,
+    val gameCreation: LocalDateTime,
 )
 
 data class DashboardSyncState(

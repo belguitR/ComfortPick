@@ -302,6 +302,8 @@ class MatchImportControllerIntegrationTest {
             teamId = teamId,
             teamPosition = teamPosition,
             individualPosition = "",
+            summonerSpell1Id = 4,
+            summonerSpell2Id = 14,
             win = true,
             kills = 9,
             deaths = 3,

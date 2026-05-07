@@ -90,6 +90,8 @@ class MatchImportStoreAdapter(
                 item6 = command.itemIds.getOrNull(6),
                 primaryRuneId = command.primaryRuneId,
                 secondaryRuneId = command.secondaryRuneId,
+                summonerSpell1Id = command.summonerSpell1Id,
+                summonerSpell2Id = command.summonerSpell2Id,
                 createdAt = command.createdAt,
             ),
         )

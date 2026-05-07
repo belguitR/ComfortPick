@@ -73,6 +73,10 @@ class PlayerMatchupEntity(
     var primaryRuneId: Int? = null,
     @Column(name = "secondary_rune_id")
     var secondaryRuneId: Int? = null,
+    @Column(name = "summoner_spell_1_id")
+    var summonerSpell1Id: Int? = null,
+    @Column(name = "summoner_spell_2_id")
+    var summonerSpell2Id: Int? = null,
     @Column(name = "created_at", nullable = false)
     var createdAt: LocalDateTime = LocalDateTime.now(),
 )

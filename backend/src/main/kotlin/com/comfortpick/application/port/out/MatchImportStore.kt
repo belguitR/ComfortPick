@@ -45,5 +45,7 @@ data class SavePlayerMatchupCommand(
     val itemIds: List<Int>,
     val primaryRuneId: Int?,
     val secondaryRuneId: Int?,
+    val summonerSpell1Id: Int?,
+    val summonerSpell2Id: Int?,
     val createdAt: LocalDateTime,
 )

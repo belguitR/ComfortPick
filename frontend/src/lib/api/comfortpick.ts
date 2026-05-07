@@ -32,21 +32,23 @@ export type ProfileDashboardResponse = {
     championId: number
     games: number
   }>
-  bestCounters: Array<{
-    enemyChampionId: number
+  latestGames: Array<{
+    riotMatchId: string
     userChampionId: number
     role: string
-    games: number
-    winrate: number
-    personalScore: number
-  }>
-  worstMatchups: Array<{
-    enemyChampionId: number
-    userChampionId: number
-    role: string
-    games: number
-    winrate: number
-    personalScore: number
+    win: boolean
+    kills: number
+    deaths: number
+    assists: number
+    totalCs: number | null
+    goldEarned: number | null
+    totalDamageToChampions: number | null
+    itemIds: number[]
+    primaryRuneId: number | null
+    secondaryRuneId: number | null
+    summonerSpell1Id: number | null
+    summonerSpell2Id: number | null
+    gameCreation: string
   }>
   lastUpdateAt: string | null
   sync: {

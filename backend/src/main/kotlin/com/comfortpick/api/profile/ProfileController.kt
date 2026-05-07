@@ -53,24 +53,24 @@ class ProfileController(
                     games = it.games,
                 )
             },
-            bestCounters = result.bestCounters.map {
-                ProfileCounterSummaryResponse(
-                    enemyChampionId = it.enemyChampionId,
+            latestGames = result.latestGames.map {
+                ProfileLatestGameResponse(
+                    riotMatchId = it.riotMatchId,
                     userChampionId = it.userChampionId,
                     role = it.role,
-                    games = it.games,
-                    winrate = it.winrate,
-                    personalScore = it.personalScore,
-                )
-            },
-            worstMatchups = result.worstMatchups.map {
-                ProfileCounterSummaryResponse(
-                    enemyChampionId = it.enemyChampionId,
-                    userChampionId = it.userChampionId,
-                    role = it.role,
-                    games = it.games,
-                    winrate = it.winrate,
-                    personalScore = it.personalScore,
+                    win = it.win,
+                    kills = it.kills,
+                    deaths = it.deaths,
+                    assists = it.assists,
+                    totalCs = it.totalCs,
+                    goldEarned = it.goldEarned,
+                    totalDamageToChampions = it.totalDamageToChampions,
+                    itemIds = it.itemIds,
+                    primaryRuneId = it.primaryRuneId,
+                    secondaryRuneId = it.secondaryRuneId,
+                    summonerSpell1Id = it.summonerSpell1Id,
+                    summonerSpell2Id = it.summonerSpell2Id,
+                    gameCreation = it.gameCreation,
                 )
             },
             lastUpdateAt = result.lastUpdateAt,
@@ -232,8 +232,7 @@ data class ProfileDashboardResponse(
     val analyzedMatches: Int,
     val mainRole: String?,
     val mostPlayedChampions: List<ProfileChampionPlayCountResponse>,
-    val bestCounters: List<ProfileCounterSummaryResponse>,
-    val worstMatchups: List<ProfileCounterSummaryResponse>,
+    val latestGames: List<ProfileLatestGameResponse>,
     val lastUpdateAt: java.time.LocalDateTime?,
     val sync: ProfileSyncResponse,
 )
@@ -250,13 +249,23 @@ data class ProfileChampionPlayCountResponse(
     val games: Int,
 )
 
-data class ProfileCounterSummaryResponse(
-    val enemyChampionId: Int,
+data class ProfileLatestGameResponse(
+    val riotMatchId: String,
     val userChampionId: Int,
     val role: String,
-    val games: Int,
-    val winrate: Double,
-    val personalScore: Double,
+    val win: Boolean,
+    val kills: Int,
+    val deaths: Int,
+    val assists: Int,
+    val totalCs: Int?,
+    val goldEarned: Int?,
+    val totalDamageToChampions: Int?,
+    val itemIds: List<Int>,
+    val primaryRuneId: Int?,
+    val secondaryRuneId: Int?,
+    val summonerSpell1Id: Int?,
+    val summonerSpell2Id: Int?,
+    val gameCreation: LocalDateTime,
 )
 
 data class ProfileSyncResponse(

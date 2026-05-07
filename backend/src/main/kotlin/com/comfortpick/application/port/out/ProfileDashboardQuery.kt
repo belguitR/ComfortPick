@@ -11,8 +11,7 @@ data class ProfileDashboardSnapshot(
     val analyzedMatches: Int,
     val mainRole: String?,
     val mostPlayedChampions: List<ChampionPlayCount>,
-    val bestCounters: List<StoredProfileCounter>,
-    val worstMatchups: List<StoredProfileCounter>,
+    val latestGames: List<ProfileRecentGameSnapshot>,
     val lastUpdateAt: LocalDateTime?,
     val sync: ProfileSyncSnapshot,
 )
@@ -22,13 +21,23 @@ data class ChampionPlayCount(
     val games: Int,
 )
 
-data class StoredProfileCounter(
-    val enemyChampionId: Int,
+data class ProfileRecentGameSnapshot(
+    val riotMatchId: String,
     val userChampionId: Int,
     val role: String,
-    val games: Int,
-    val winrate: Double,
-    val personalScore: Double,
+    val win: Boolean,
+    val kills: Int,
+    val deaths: Int,
+    val assists: Int,
+    val totalCs: Int?,
+    val goldEarned: Int?,
+    val totalDamageToChampions: Int?,
+    val itemIds: List<Int>,
+    val primaryRuneId: Int?,
+    val secondaryRuneId: Int?,
+    val summonerSpell1Id: Int?,
+    val summonerSpell2Id: Int?,
+    val gameCreation: LocalDateTime,
 )
 
 data class ProfileSyncSnapshot(

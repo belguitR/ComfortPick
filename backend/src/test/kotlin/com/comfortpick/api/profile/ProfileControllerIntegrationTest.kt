@@ -131,8 +131,6 @@ class ProfileControllerIntegrationTest {
         savePlayerMatchup(account, thirdMatch, userChampionId = 7, enemyChampionId = 238, role = "TOP", createdAt = now.minusDays(1))
 
         saveStat(account, enemyChampionId = 238, userChampionId = 103, role = "MIDDLE", games = 8, wins = 6, personalScore = 84.0, confidence = "HIGH", updatedAt = now.minusHours(12))
-        saveStat(account, enemyChampionId = 84, userChampionId = 7, role = "TOP", games = 5, wins = 1, personalScore = 42.0, confidence = "MEDIUM", updatedAt = now.minusHours(8))
-        saveStat(account, enemyChampionId = 126, userChampionId = 55, role = "BOTTOM", games = 4, wins = 3, personalScore = 67.0, confidence = "MEDIUM", updatedAt = now.minusHours(6))
 
         mockMvc.get("/api/profiles/${account.id}")
             .andExpect {
@@ -144,13 +142,13 @@ class ProfileControllerIntegrationTest {
                 jsonPath("$.mostPlayedChampions", hasSize<Any>(2))
                 jsonPath("$.mostPlayedChampions[0].championId", equalTo(103))
                 jsonPath("$.mostPlayedChampions[0].games", equalTo(2))
-                jsonPath("$.bestCounters", hasSize<Any>(3))
-                jsonPath("$.bestCounters[0].userChampionId", equalTo(103))
-                jsonPath("$.bestCounters[0].personalScore", equalTo(84.0))
-                jsonPath("$.worstMatchups", hasSize<Any>(3))
-                jsonPath("$.worstMatchups[0].userChampionId", equalTo(7))
-                jsonPath("$.worstMatchups[0].personalScore", equalTo(42.0))
-                jsonPath("$.lastUpdateAt", startsWith(now.minusHours(6).toLocalDate().toString()))
+                jsonPath("$.latestGames", hasSize<Any>(3))
+                jsonPath("$.latestGames[0].riotMatchId", equalTo("EUW1_3"))
+                jsonPath("$.latestGames[0].userChampionId", equalTo(7))
+                jsonPath("$.latestGames[0].summonerSpell1Id", equalTo(4))
+                jsonPath("$.latestGames[0].primaryRuneId", equalTo(8112))
+                jsonPath("$.latestGames[0].itemIds", hasSize<Any>(7))
+                jsonPath("$.lastUpdateAt", startsWith(now.minusHours(12).toLocalDate().toString()))
                 jsonPath("$.sync.status", equalTo("IDLE"))
                 jsonPath("$.sync.targetMatchCount", equalTo(500))
                 jsonPath("$.sync.backfillCursor", equalTo(0))
@@ -170,8 +168,7 @@ class ProfileControllerIntegrationTest {
                 jsonPath("$.analyzedMatches", equalTo(0))
                 jsonPath("$.mainRole", nullValue())
                 jsonPath("$.mostPlayedChampions", hasSize<Any>(0))
-                jsonPath("$.bestCounters", hasSize<Any>(0))
-                jsonPath("$.worstMatchups", hasSize<Any>(0))
+                jsonPath("$.latestGames", hasSize<Any>(0))
                 jsonPath("$.lastUpdateAt", nullValue())
                 jsonPath("$.sync.status", equalTo("IDLE"))
             }
@@ -373,6 +370,8 @@ class ProfileControllerIntegrationTest {
         item6: Int? = 3363,
         primaryRuneId: Int? = 8112,
         secondaryRuneId: Int? = 8226,
+        summonerSpell1Id: Int? = 4,
+        summonerSpell2Id: Int? = 14,
     ) {
         playerMatchupRepository.save(
             PlayerMatchupEntity(
@@ -398,6 +397,8 @@ class ProfileControllerIntegrationTest {
                 item6 = item6,
                 primaryRuneId = primaryRuneId,
                 secondaryRuneId = secondaryRuneId,
+                summonerSpell1Id = summonerSpell1Id,
+                summonerSpell2Id = summonerSpell2Id,
                 createdAt = createdAt,
             ),
         )

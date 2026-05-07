@@ -127,6 +127,8 @@ class RunHistorySyncCycleUseCaseIntegrationTest {
             teamId = teamId,
             teamPosition = teamPosition,
             individualPosition = "",
+            summonerSpell1Id = 4,
+            summonerSpell2Id = 14,
             win = win,
             kills = 9,
             deaths = 3,

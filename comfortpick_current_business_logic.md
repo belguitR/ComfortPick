@@ -250,6 +250,8 @@ Current rule:
    - item IDs
    - primary rune
    - secondary rune
+   - summoner spell 1
+   - summoner spell 2
 
 Failure reasons:
 
@@ -334,10 +336,28 @@ Current returned fields:
 - `analyzedMatches`
 - `mainRole`
 - `mostPlayedChampions`
-- `bestCounters`
-- `worstMatchups`
+- `latestGames`
 - `lastUpdateAt`
 - `sync`
+
+Current `latestGames` fields:
+
+- `riotMatchId`
+- `userChampionId`
+- `role`
+- `win`
+- `kills`
+- `deaths`
+- `assists`
+- `totalCs`
+- `goldEarned`
+- `totalDamageToChampions`
+- `itemIds`
+- `primaryRuneId`
+- `secondaryRuneId`
+- `summonerSpell1Id`
+- `summonerSpell2Id`
+- `gameCreation`
 
 Current `sync` fields:
 
@@ -400,7 +420,19 @@ Current MVP heuristics:
 - `secondaryRuneId`
   - most common secondary rune in wins
 
-## 13. Scoring formula
+## 13. Stored summoner spell data
+
+Current stored per-match spell fields on `player_matchups`:
+
+- `summonerSpell1Id`
+- `summonerSpell2Id`
+
+Current usage:
+
+- exposed on dashboard recent game history
+- used only for read/UI display right now
+
+## 14. Scoring formula
 
 Implemented in:
 
@@ -443,7 +475,7 @@ Current status mapping:
 6. `OK_PICK` if `score >= 50`
 7. else `AVOID`
 
-## 14. Current frontend flow
+## 15. Current frontend flow
 
 Current routes:
 
@@ -475,7 +507,7 @@ Current frontend API usage:
 - detail:
   - `GET /api/profiles/{summonerId}/enemies/{enemyChampionId}/counters/{userChampionId}`
 
-## 15. Important current limitations
+## 16. Important current limitations
 
 - scoring is still heuristic MVP logic
 - sync is local-process scheduling, not a distributed queue
@@ -487,8 +519,9 @@ Current frontend API usage:
 - no patch filtering yet
 - no recency weighting persisted in DB yet
 - frontend is intentionally desktop-first right now
+- dashboard latest games use stored final inventory, not purchase timelines
 
-## 16. Code references
+## 17. Code references
 
 - [SearchSummonerUseCase.kt](</C:/Users/errmi/Documents/New project/backend/src/main/kotlin/com/comfortpick/application/usecase/SearchSummonerUseCase.kt>)
 - [ImportMatchHistoryUseCase.kt](</C:/Users/errmi/Documents/New project/backend/src/main/kotlin/com/comfortpick/application/usecase/ImportMatchHistoryUseCase.kt>)

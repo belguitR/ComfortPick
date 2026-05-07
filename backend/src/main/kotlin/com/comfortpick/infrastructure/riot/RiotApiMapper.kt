@@ -36,6 +36,8 @@ class RiotApiMapper {
             teamId = participant.teamId,
             teamPosition = participant.teamPosition.orEmpty(),
             individualPosition = participant.individualPosition.orEmpty(),
+            summonerSpell1Id = participant.summoner1Id,
+            summonerSpell2Id = participant.summoner2Id,
             win = participant.win,
             kills = participant.kills,
             deaths = participant.deaths,

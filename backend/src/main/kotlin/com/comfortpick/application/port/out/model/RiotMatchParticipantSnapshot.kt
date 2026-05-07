@@ -7,6 +7,8 @@ data class RiotMatchParticipantSnapshot(
     val teamId: Int,
     val teamPosition: String,
     val individualPosition: String,
+    val summonerSpell1Id: Int?,
+    val summonerSpell2Id: Int?,
     val win: Boolean,
     val kills: Int,
     val deaths: Int,

@@ -174,10 +174,20 @@ Current rule:
   - analyzed match count
   - main role
   - most played champions
-  - best counters
-  - worst matchups
+  - latest games
   - last update timestamp
 - returns a valid empty dashboard when the profile exists but has no stored analysis yet
+
+Current latest games payload includes:
+
+- user champion
+- role
+- result
+- KDA
+- CS / gold / damage
+- item ids
+- rune ids
+- summoner spell ids
 
 ## Current matchup detail endpoint
 

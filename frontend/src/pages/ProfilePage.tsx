@@ -4,6 +4,9 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ApiError } from '../lib/api/client'
 import { getProfileDashboard, requestProfileSync } from '../lib/api/comfortpick'
 import { CHAMPIONS, getChampionById, resolveChampionQuery } from '../lib/champions'
+import { getItemById } from '../lib/items'
+import { getRuneById } from '../lib/runes'
+import { getSummonerSpellById } from '../lib/spells'
 import type { ProfileDashboardResponse, SearchSummonerResponse } from '../lib/api/comfortpick'
 
 type NavigationState = {
@@ -179,8 +182,7 @@ export function ProfilePage() {
 
   const hasAnalysis =
     dashboard.analyzedMatches > 0 ||
-    dashboard.bestCounters.length > 0 ||
-    dashboard.worstMatchups.length > 0
+    dashboard.latestGames.length > 0
   const primaryChampion = dashboard.mostPlayedChampions[0]
   const syncTone = getSyncTone(dashboard.sync.status)
   const showSyncBanner = dashboard.sync.status !== 'COMPLETE' || syncWarning != null
@@ -305,56 +307,60 @@ export function ProfilePage() {
             </div>
           </article>
 
-          <article className="insight-card">
+          <article className="insight-card latest-games-card">
             <div className="insight-card-head">
-              <h2>Best Counters</h2>
-              <span>Top comfort picks</span>
+              <h2>Latest Games</h2>
+              <span>Recent analyzed history</span>
             </div>
-            <div className="rank-list">
-              {dashboard.bestCounters.map((entry) => {
-                const userChampion = getChampionById(entry.userChampionId)
-                const scoreWidth = Math.max(16, Math.min(entry.personalScore, 100))
+            <div className="latest-games-list">
+              {dashboard.latestGames.map((game) => {
+                const champion = getChampionById(game.userChampionId)
+                const kda = `${game.kills} / ${game.deaths} / ${game.assists}`
+                const itemSet = game.itemIds.map((itemId) => getItemById(itemId)).filter((item) => item != null)
+                const runes = [
+                  game.primaryRuneId != null ? getRuneById(game.primaryRuneId) : undefined,
+                  game.secondaryRuneId != null ? getRuneById(game.secondaryRuneId) : undefined,
+                ].filter((rune) => rune != null)
+                const spells = [getSummonerSpellById(game.summonerSpell1Id), getSummonerSpellById(game.summonerSpell2Id)].filter((spell) => spell != null)
+
                 return (
-                  <div key={`${entry.enemyChampionId}-${entry.userChampionId}-${entry.role}`} className="rank-row">
-                    <div className="rank-row-title">
-                      <img className="rank-row-avatar" src={userChampion?.image} alt="" />
-                      <strong>{userChampion?.name ?? `Champion ${entry.userChampionId}`}</strong>
-                    </div>
-                    <div className="rank-score">
-                      <span>{entry.personalScore.toFixed(1)}</span>
-                      <div className="rank-score-bar">
-                        <div style={{ width: `${scoreWidth}%` }} />
+                  <div key={game.riotMatchId} className="latest-game-row">
+                    <div className="latest-game-identity">
+                      <img className="latest-game-avatar" src={champion?.image} alt="" />
+                      <div>
+                        <strong>{champion?.name ?? `Champion ${game.userChampionId}`}</strong>
+                        <span>{formatRole(game.role)} • {formatRelativeOrDate(game.gameCreation)}</span>
                       </div>
                     </div>
-                    <span className="rank-meta">{entry.games} games</span>
-                  </div>
-                )
-              })}
-            </div>
-          </article>
 
-          <article className="insight-card">
-            <div className="insight-card-head">
-              <h2>Worst Matchups</h2>
-              <span>Draft caution</span>
-            </div>
-            <div className="threat-list">
-              {dashboard.worstMatchups.map((entry) => {
-                const enemyChampion = getChampionById(entry.enemyChampionId)
-                const userChampion = getChampionById(entry.userChampionId)
-                const safeWinrate = Math.max(0, Math.min(entry.winrate, 100))
-                return (
-                  <div key={`${entry.enemyChampionId}-${entry.userChampionId}-${entry.role}`} className="threat-row">
-                    <div className="threat-row-head">
-                      <strong>
-                        {userChampion?.name ?? `Champion ${entry.userChampionId}`} vs {enemyChampion?.name ?? `Champion ${entry.enemyChampionId}`}
-                      </strong>
-                      <span>{entry.winrate.toFixed(1)}% WR</span>
+                    <div className="latest-game-kda">
+                      <span className={`result-pill ${game.win ? 'result-win' : 'result-loss'}`}>
+                        {game.win ? 'Win' : 'Loss'}
+                      </span>
+                      <strong>{kda}</strong>
+                      <small>{formatKdaRatio(game.kills, game.deaths, game.assists)} KDA</small>
                     </div>
-                    <div className="threat-bar">
-                      <div style={{ width: `${safeWinrate}%` }} />
+
+                    <div className="latest-game-meta">
+                      <span>{game.totalCs != null ? `${game.totalCs} CS` : 'No CS'}</span>
+                      <span>{game.goldEarned != null ? formatGold(game.goldEarned) : 'No gold'}</span>
                     </div>
-                    <small>{formatRole(entry.role)}</small>
+
+                    <div className="latest-game-loadout">
+                      <div className="latest-game-icon-strip">
+                        {itemSet.slice(0, 6).map((item) => (
+                          <img key={`item-${game.riotMatchId}-${item.id}`} src={item.image} alt={item.name} title={item.name} />
+                        ))}
+                      </div>
+                      <div className="latest-game-icon-strip latest-game-icon-strip-compact">
+                        {spells.map((spell) => (
+                          <img key={`spell-${game.riotMatchId}-${spell.id}`} src={spell.image} alt={spell.name} title={spell.name} />
+                        ))}
+                        {runes.map((rune) => (
+                          <img key={`rune-${game.riotMatchId}-${rune.id}`} src={rune.image} alt={rune.name} title={rune.name} />
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 )
               })}
@@ -428,6 +434,19 @@ function formatRelativeOrDate(value: string): string {
   if (diffHours < 24) return `${diffHours}h ago`
 
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(date)
+}
+
+function formatGold(value: number): string {
+  if (value >= 1000) {
+    return `${(value / 1000).toFixed(1)}k gold`
+  }
+
+  return `${value} gold`
+}
+
+function formatKdaRatio(kills: number, deaths: number, assists: number): string {
+  const ratio = (kills + assists) / Math.max(deaths, 1)
+  return ratio.toFixed(1)
 }
 
 function formatSyncStatus(status: ProfileDashboardResponse['sync']['status']): string {
