@@ -13,11 +13,11 @@ type SearchFormState = {
 
 type SearchPhase = 'idle' | 'searching' | 'queueing'
 
-const REGION_OPTIONS: Array<{ value: RoutingRegion; label: string; detail: string }> = [
-  { value: 'EUROPE', label: 'Europe', detail: 'EUW, EUNE, TR, RU' },
-  { value: 'AMERICAS', label: 'Americas', detail: 'NA, BR, LAN, LAS' },
-  { value: 'ASIA', label: 'Asia', detail: 'KR, JP' },
-  { value: 'SEA', label: 'SEA', detail: 'SG, PH, TH, TW, VN' },
+const REGION_OPTIONS: Array<{ value: RoutingRegion; label: string }> = [
+  { value: 'EUROPE', label: 'Europe West' },
+  { value: 'AMERICAS', label: 'North America' },
+  { value: 'ASIA', label: 'Korea / Japan' },
+  { value: 'SEA', label: 'Southeast Asia' },
 ]
 
 const DEFAULT_FORM: SearchFormState = {
@@ -25,6 +25,8 @@ const DEFAULT_FORM: SearchFormState = {
   tagLine: '',
   region: 'EUROPE',
 }
+
+const HERO_IMAGE = 'https://ddragon.leagueoflegends.com/cdn/img/champion/splash/Ahri_0.jpg'
 
 export function SearchPage() {
   const navigate = useNavigate()
@@ -35,9 +37,9 @@ export function SearchPage() {
 
   const isSubmitting = phase !== 'idle'
   const submitLabel = useMemo(() => {
-    if (phase === 'searching') return 'Searching Riot account...'
-    if (phase === 'queueing') return 'Queueing background sync...'
-    return 'Analyze profile'
+    if (phase === 'searching') return 'Finding account...'
+    if (phase === 'queueing') return 'Starting sync...'
+    return 'Sync History'
   }, [phase])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -46,7 +48,7 @@ export function SearchPage() {
     const gameName = form.gameName.trim()
     const tagLine = form.tagLine.trim()
     if (!gameName || !tagLine) {
-      setValidationError('Game name and tagline are required.')
+      setValidationError('Enter both game name and tagline.')
       setRequestError(null)
       return
     }
@@ -75,103 +77,122 @@ export function SearchPage() {
   }
 
   return (
-    <section className="search-layout" aria-labelledby="search-title">
-      <div className="hero-panel">
-        <p className="section-label">Stored personal matchup engine</p>
-        <h1 id="search-title">Search a Riot account, queue sync, then draft from your own history.</h1>
-        <p className="hero-copy">
-          ComfortPick stores summoner history locally, recalculates personal matchup results,
-          and surfaces which champions actually work for that player instead of leaning on
-          generic counter charts.
-        </p>
-
-        <div className="feature-grid" aria-label="Workflow summary">
-          <article className="feature-tile">
-            <span className="feature-eyebrow">1. Search</span>
-            <strong>Resolve Riot identity with cache reuse</strong>
-            <p>Fresh accounts return from the database before Riot is touched again.</p>
-          </article>
-          <article className="feature-tile">
-            <span className="feature-eyebrow">2. Sync</span>
-            <strong>Backfill in controlled 10-match batches</strong>
-            <p>A background worker keeps walking deeper into history instead of forcing one large import.</p>
-          </article>
-          <article className="feature-tile">
-            <span className="feature-eyebrow">3. Use</span>
-            <strong>Read counters from precomputed stats</strong>
-            <p>Profile, counter, and matchup reads stay database-first while sync continues.</p>
-          </article>
-        </div>
-      </div>
-
-      <form className="search-card" onSubmit={handleSubmit} noValidate>
-        <div className="card-heading">
-          <p className="section-label">Analyze summoner</p>
-          <h2>Queue background history sync</h2>
-          <p>Search the Riot account, queue a background sync, and land on the stored profile immediately.</p>
+    <section className="search-page">
+      <section className="landing-hero">
+        <div className="landing-hero-copy">
+          <h1>Search a Riot account, sync the history, then draft from what actually works for you.</h1>
+          <p>
+            ComfortPick turns your own match history into personal counter picks, matchup reads,
+            and build guidance.
+          </p>
         </div>
 
-        <label className="field">
-          <span>Game name</span>
-          <input
-            name="gameName"
-            autoComplete="off"
-            placeholder="Rami"
-            value={form.gameName}
-            onChange={(event) => setForm((current) => ({ ...current, gameName: event.target.value }))}
-            disabled={isSubmitting}
-          />
-        </label>
+        <form className="hero-search-card" onSubmit={handleSubmit} noValidate>
+          <label className="hero-field">
+            <span>Game Name</span>
+            <input
+              name="gameName"
+              autoComplete="off"
+              placeholder="Rami"
+              value={form.gameName}
+              onChange={(event) => setForm((current) => ({ ...current, gameName: event.target.value }))}
+              disabled={isSubmitting}
+            />
+          </label>
 
-        <label className="field">
-          <span>Tagline</span>
-          <input
-            name="tagLine"
-            autoComplete="off"
-            placeholder="EUW"
-            value={form.tagLine}
-            onChange={(event) => setForm((current) => ({ ...current, tagLine: event.target.value }))}
-            disabled={isSubmitting}
-          />
-        </label>
+          <label className="hero-field">
+            <span>Tagline</span>
+            <input
+              name="tagLine"
+              autoComplete="off"
+              placeholder="EUW"
+              value={form.tagLine}
+              onChange={(event) => setForm((current) => ({ ...current, tagLine: event.target.value }))}
+              disabled={isSubmitting}
+            />
+          </label>
 
-        <label className="field">
-          <span>Routing region</span>
-          <select
-            name="region"
-            value={form.region}
-            onChange={(event) =>
-              setForm((current) => ({ ...current, region: event.target.value as RoutingRegion }))
-            }
-            disabled={isSubmitting}
-          >
-            {REGION_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label} - {option.detail}
-              </option>
-            ))}
-          </select>
-        </label>
+          <label className="hero-field">
+            <span>Region</span>
+            <select
+              name="region"
+              value={form.region}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, region: event.target.value as RoutingRegion }))
+              }
+              disabled={isSubmitting}
+            >
+              {REGION_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <button className="hero-submit-button" type="submit" disabled={isSubmitting}>
+            {submitLabel}
+          </button>
+        </form>
 
         {(validationError || requestError) && (
-          <div className="form-alert" role="alert">
+          <div className="page-alert" role="alert">
             {validationError ?? requestError}
           </div>
         )}
+      </section>
 
-        <button className="primary-button" type="submit" disabled={isSubmitting}>
-          {submitLabel}
-        </button>
+      <section className="landing-steps" aria-label="How it works">
+        <article className="landing-step-card">
+          <div className="step-icon">S</div>
+          <strong>1. Search</strong>
+          <p>Open any Riot account and pull its personal draft history into one place.</p>
+        </article>
+        <article className="landing-step-card">
+          <div className="step-icon">Y</div>
+          <strong>2. Sync</strong>
+          <p>We keep building the profile in the background so the dashboard gets richer over time.</p>
+        </article>
+        <article className="landing-step-card">
+          <div className="step-icon">P</div>
+          <strong>3. Pick</strong>
+          <p>Read your strongest counters, weak lanes, builds, and runes before the draft locks in.</p>
+        </article>
+      </section>
 
-        <div className="request-note">
-          <span>Backend behavior</span>
-          <ul>
-            <li>1 Riot account lookup only when the profile is missing or stale.</li>
-            <li>Profile open queues a background sync that pulls 10-match batches toward a 500-match target.</li>
-            <li>Profile reads stay on the database while the sync worker keeps backfilling.</li>
-          </ul>
+      <section className="landing-promo-grid">
+        <article
+          className="landing-promo-hero"
+          style={{ backgroundImage: `linear-gradient(180deg, rgba(17,17,24,0.12), rgba(17,17,24,0.82)), url(${HERO_IMAGE})` }}
+        >
+          <span>Personal Drafting Engine</span>
+          <strong>Counter picks backed by your own games, not generic ladder averages.</strong>
+        </article>
+
+        <article className="landing-promo-stat">
+          <div className="promo-dot promo-dot-green" aria-hidden="true" />
+          <strong>Fast reads</strong>
+          <p>Profiles open first, then keep filling in as more match history syncs.</p>
+        </article>
+
+        <article className="landing-promo-stat">
+          <div className="promo-dot promo-dot-purple" aria-hidden="true" />
+          <strong>Built for draft</strong>
+          <p>Enemy champion lookup, personal counters, and matchup detail stay one click away.</p>
+        </article>
+      </section>
+
+      <footer className="page-footer">
+        <div>
+          <strong>ComfortPick Analytics</strong>
+          <p>ComfortPick uses your match history to surface the picks you perform best on.</p>
         </div>
-      </form>
+        <div className="page-footer-links">
+          <span>Privacy Policy</span>
+          <span>Terms of Service</span>
+          <span>Support</span>
+        </div>
+      </footer>
     </section>
   )
 }
@@ -191,7 +212,7 @@ async function tryQueueSyncOrCaptureError(
   } catch (error) {
     if (error instanceof ApiError) {
       return {
-        syncWarning: 'Profile opened, but the background sync request did not complete.',
+        syncWarning: 'Profile opened. Match history will keep syncing shortly.',
         summoner,
       }
     }
@@ -204,21 +225,20 @@ function getSearchErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
     switch (error.code) {
       case 'SUMMONER_NOT_FOUND':
-        return 'Riot could not find that account for the selected routing region.'
+        return 'We could not find that Riot account. Check the game name, tagline, and region.'
       case 'RIOT_API_RATE_LIMIT':
         return error.retryAfterSeconds != null
-          ? `Riot rate limit reached. Retry in about ${error.retryAfterSeconds} seconds.`
-          : 'Riot rate limit reached. Retry in a moment.'
+          ? `Too many requests right now. Try again in about ${error.retryAfterSeconds} seconds.`
+          : 'Too many requests right now. Try again in a moment.'
       case 'RIOT_API_UNAUTHORIZED':
-        return 'The Riot API key is unavailable or invalid on the backend.'
       case 'RIOT_API_UNAVAILABLE':
-        return 'Riot API is temporarily unavailable.'
+        return 'Account lookup is temporarily unavailable.'
       case 'BAD_REQUEST':
         return error.message
       default:
-        return error.message
+        return 'We could not start that search right now.'
     }
   }
 
-  return 'Unexpected frontend error while starting analysis.'
+  return 'We could not start that search right now.'
 }

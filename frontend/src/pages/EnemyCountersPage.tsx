@@ -7,7 +7,7 @@ import type { PersonalCounterResponse } from '../lib/api/comfortpick'
 import { CHAMPIONS, getChampionById, resolveChampionQuery } from '../lib/champions'
 
 const SCORE_FORMULA_TOOLTIP =
-  'Score = winrate x 0.35 + champion comfort x 0.25 + KDA x 0.15 + CS/gold x 0.10 + recent performance x 0.10 + fallback x 0.05 - low sample penalty.'
+  'Win rate and champion comfort matter most, then KDA, farm and gold, recent form, and a small fallback value. Small samples are penalized so one lucky game does not dominate the list.'
 
 export function EnemyCountersPage() {
   const navigate = useNavigate()
@@ -76,11 +76,10 @@ export function EnemyCountersPage() {
 
   if (!summonerId || parsedEnemyChampionId == null) {
     return (
-      <section className="profile-state">
-        <p className="section-label">Counters error</p>
-        <h1>Could not load counters</h1>
-        <p className="state-copy">The enemy champion in the route is missing or invalid.</p>
-        <Link className="inline-link" to={summonerId ? `/profiles/${summonerId}` : '/'}>
+      <section className="workspace-state">
+        <h1>We couldn’t open that counter page.</h1>
+        <p>Please go back and search for a champion again.</p>
+        <Link className="ghost-link" to={summonerId ? `/profiles/${summonerId}` : '/'}>
           Back to profile
         </Link>
       </section>
@@ -92,50 +91,47 @@ export function EnemyCountersPage() {
     const champion = resolveChampionQuery(enemyChampionInput.trim())
     if (!champion) {
       setStatus('error')
-      setErrorMessage('Enter a valid champion name.')
+      setErrorMessage('Enter an enemy champion name to continue.')
       return
     }
 
     navigate(`/profiles/${summonerId}/enemies/${champion.id}`)
   }
 
-  const enemyChampionName = getChampionById(parsedEnemyChampionId)?.name ?? `Champion ${parsedEnemyChampionId}`
+  const enemyChampion = getChampionById(parsedEnemyChampionId)
+  const enemyChampionName = enemyChampion?.name ?? `Champion ${parsedEnemyChampionId}`
 
   return (
-    <section className="profile-layout">
-      <header className="profile-header">
-        <div>
-          <p className="section-label">Enemy matchup search</p>
-          <h1>
-            {enemyChampionName}
-            <span>Stored counters only</span>
-          </h1>
-          <p className="hero-copy">
-            Results below come from precomputed personal matchup stats. No Riot API request is
-            made for this page.
-          </p>
+    <section className="workspace-layout">
+      <header className="workspace-header">
+        <div className="matchup-hero-title">
+          {enemyChampion?.image ? <img className="matchup-hero-avatar" src={enemyChampion.image} alt="" /> : null}
+          <div>
+            <h1 className="workspace-title">{enemyChampionName}</h1>
+            <p className="workspace-subtitle">Your strongest answers to this matchup.</p>
+          </div>
         </div>
-        <div className="toolbar-actions">
-          <Link className="secondary-link" to={`/profiles/${summonerId}`}>
-            Back to profile
-          </Link>
-        </div>
+        <Link className="workspace-action-button secondary-action" to={`/profiles/${summonerId}`}>
+          Profile Dashboard
+        </Link>
       </header>
 
-      <section className="dashboard-panel">
-        <form className="inline-form" onSubmit={handleSubmit} noValidate>
-          <label className="field inline-field">
-            <span>Enemy champion</span>
-            <input
-              name="enemyChampion"
-              value={enemyChampionInput}
-              onChange={(event) => setEnemyChampionInput(event.target.value)}
-              placeholder="Zed"
-              list="champion-options"
-            />
-          </label>
-          <button className="primary-button compact-button" type="submit">
-            Load counters
+      <section className="dashboard-search-panel compact-panel">
+        <div className="dashboard-search-copy">
+          <h2>Try another enemy pick</h2>
+          <p>Swap the opposing champion to refresh your counter list.</p>
+        </div>
+
+        <form className="dashboard-search-form" onSubmit={handleSubmit} noValidate>
+          <input
+            name="enemyChampion"
+            value={enemyChampionInput}
+            onChange={(event) => setEnemyChampionInput(event.target.value)}
+            placeholder="Search enemy champion"
+            list="champion-options"
+          />
+          <button className="dashboard-search-button" type="submit">
+            Load Counters
           </button>
         </form>
         <datalist id="champion-options">
@@ -146,116 +142,148 @@ export function EnemyCountersPage() {
       </section>
 
       {isLoading && (
-        <section className="profile-state">
-          <p className="section-label">Counters loading</p>
-          <h2>Loading stored counter recommendations</h2>
-          <p className="state-copy">Reading precomputed matchup stats from the backend.</p>
+        <section className="workspace-state">
+          <h1>Loading counters</h1>
+          <p>Pulling your latest picks for this enemy champion.</p>
         </section>
       )}
 
       {!isLoading && status === 'error' && (
-        <section className="profile-state">
-          <p className="section-label">Counters error</p>
-          <h2>Could not load counters</h2>
-          <p className="state-copy">{errorMessage}</p>
+        <section className="workspace-state">
+          <h1>We couldn’t load those counters.</h1>
+          <p>{errorMessage}</p>
         </section>
       )}
 
       {!isLoading && status === 'ready' && counters.length === 0 && (
-        <section className="empty-panel">
-          <p className="section-label">No stored counters</p>
-          <h2>No personal matchup data exists yet for {enemyChampionName}.</h2>
-          <p className="state-copy">Import more matches or try another enemy champion.</p>
+        <section className="workspace-empty-card">
+          <h2>No personal counter data yet for {enemyChampionName}.</h2>
+          <p>Give the sync a little more time, then check this matchup again.</p>
         </section>
       )}
 
       {!isLoading && status === 'ready' && counters.length > 0 && (
-        <section className="dashboard-panel">
-          <div className="panel-heading">
-            <h2>Personal counter ranking</h2>
-            <p>Sorted by stored personal score from the backend.</p>
-          </div>
-          <div
-            id="score-formula-panel"
-            className={`score-formula-panel ${showScoreFormula ? 'score-formula-visible' : ''}`}
-            role="note"
-            aria-label="Score formula explanation"
-          >
-            <strong>How score is calculated</strong>
-            <p>{SCORE_FORMULA_TOOLTIP}</p>
+        <section className="workspace-panel">
+          <div className="panel-header-row">
+            <div>
+              <h2>Counter ranking</h2>
+              <p>Best personal picks for this enemy champion.</p>
+            </div>
+            <div className="score-help-wrap">
+              <button
+                className="score-help-button"
+                type="button"
+                onMouseEnter={() => setShowScoreFormula(true)}
+                onMouseLeave={() => setShowScoreFormula(false)}
+                onFocus={() => setShowScoreFormula(true)}
+                onBlur={() => setShowScoreFormula(false)}
+                aria-expanded={showScoreFormula}
+                aria-controls="score-formula-panel"
+              >
+                Score*
+              </button>
+              <div
+                id="score-formula-panel"
+                className={`score-formula-panel ${showScoreFormula ? 'score-formula-visible' : ''}`}
+                role="note"
+                aria-label="Score formula explanation"
+              >
+                <strong>How score works</strong>
+                <p>{SCORE_FORMULA_TOOLTIP}</p>
+              </div>
+            </div>
           </div>
 
-          <div className="counter-table" role="table" aria-label="Enemy champion counters">
-            <div className="counter-row counter-head" role="row">
+          <div className="counter-table-shell" role="table" aria-label="Enemy champion counters">
+            <div className="counter-grid counter-grid-head" role="row">
               <span role="columnheader">Champion</span>
               <span role="columnheader">Role</span>
-              <span role="columnheader">
-                <button
-                  className="score-help-button"
-                  type="button"
-                  onMouseEnter={() => setShowScoreFormula(true)}
-                  onMouseLeave={() => setShowScoreFormula(false)}
-                  onFocus={() => setShowScoreFormula(true)}
-                  onBlur={() => setShowScoreFormula(false)}
-                  aria-expanded={showScoreFormula}
-                  aria-controls="score-formula-panel"
-                >
-                  Score*
-                </button>
-              </span>
+              <span role="columnheader">Score</span>
               <span role="columnheader">Games</span>
-              <span role="columnheader">Winrate</span>
+              <span role="columnheader">Win Rate</span>
               <span role="columnheader">KDA</span>
               <span role="columnheader">Confidence</span>
             </div>
 
-            {counters.map((counter) => (
-              <div
-                key={`${counter.enemyChampionId}-${counter.userChampionId}-${counter.role}`}
-                className={`counter-row status-${counter.status.toLowerCase()}`}
-                role="row"
-              >
+            {counters.map((counter) => {
+              const champion = getChampionById(counter.userChampionId)
+              return (
                 <Link
-                  className="counter-link"
-                  role="cell"
+                  key={`${counter.enemyChampionId}-${counter.userChampionId}-${counter.role}`}
+                  className="counter-grid counter-grid-row"
+                  role="row"
                   to={`/profiles/${summonerId}/enemies/${counter.enemyChampionId}/counters/${counter.userChampionId}`}
                 >
-                  <span className="champion-cell">
-                    <img
-                      className="champion-avatar"
-                      src={getChampionById(counter.userChampionId)?.image}
-                      alt=""
-                    />
-                    <span>{getChampionById(counter.userChampionId)?.name ?? `Champion ${counter.userChampionId}`}</span>
+                  <span className="counter-champion-cell" role="cell">
+                    <img className="counter-avatar" src={champion?.image} alt="" />
+                    <span>{champion?.name ?? `Champion ${counter.userChampionId}`}</span>
                   </span>
+                  <span role="cell">{formatRole(counter.role)}</span>
+                  <span role="cell">{counter.personalScore.toFixed(1)}</span>
+                  <span role="cell">{counter.games}</span>
+                  <span role="cell">{counter.winrate.toFixed(1)}%</span>
+                  <span role="cell">{counter.averageKda.toFixed(2)}</span>
+                  <span role="cell">{formatConfidence(counter.confidence)}</span>
                 </Link>
-                <span role="cell">{counter.role}</span>
-                <span role="cell">{counter.personalScore.toFixed(1)}</span>
-                <span role="cell">{counter.games}</span>
-                <span role="cell">{counter.winrate.toFixed(1)}%</span>
-                <span role="cell">{counter.averageKda.toFixed(2)}</span>
-                <span role="cell">{formatConfidence(counter.confidence)}</span>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </section>
       )}
+
+      <footer className="workspace-footer">
+        <div className="workspace-footer-brand">
+          <strong>ComfortPick Analytics</strong>
+          <p>Shortlist your best answers before the draft locks in.</p>
+        </div>
+        <div className="workspace-footer-links">
+          <span>Privacy Policy</span>
+          <span>Terms of Service</span>
+          <span>Support</span>
+        </div>
+      </footer>
     </section>
   )
 }
 
+function formatRole(value: string): string {
+  switch (value.toUpperCase()) {
+    case 'TOP':
+      return 'Top'
+    case 'JUNGLE':
+      return 'Jungle'
+    case 'MIDDLE':
+      return 'Mid'
+    case 'BOTTOM':
+      return 'Bot'
+    case 'UTILITY':
+      return 'Support'
+    default:
+      return value.toLowerCase().replace('_', ' ')
+  }
+}
+
 function formatConfidence(value: PersonalCounterResponse['confidence']): string {
-  return value.toLowerCase().replace('_', ' ')
+  switch (value) {
+    case 'HIGH':
+      return 'High'
+    case 'MEDIUM':
+      return 'Medium'
+    case 'LOW':
+      return 'Low'
+    default:
+      return 'Early'
+  }
 }
 
 function getCountersErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.code === 'SUMMONER_PROFILE_NOT_FOUND') {
-      return 'This stored summoner id does not exist in the backend.'
+      return 'We could not find that profile.'
     }
 
-    return error.message
+    return 'This counter list is temporarily unavailable.'
   }
 
-  return 'Unexpected frontend error while loading counters.'
+  return 'This counter list is temporarily unavailable.'
 }

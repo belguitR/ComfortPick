@@ -33,20 +33,17 @@ export function ProfilePage() {
 
     let active = true
 
-    const loadDashboard = async () => {
-      try {
-        const response = await getProfileDashboard(summonerId)
+    void getProfileDashboard(summonerId)
+      .then((response) => {
         if (!active) return
         setDashboard(response)
         setStatus('ready')
-      } catch (error: unknown) {
+      })
+      .catch((error: unknown) => {
         if (!active) return
         setStatus('error')
         setErrorMessage(getProfileErrorMessage(error))
-      }
-    }
-
-    void loadDashboard()
+      })
 
     return () => {
       active = false
@@ -63,7 +60,7 @@ export function ProfilePage() {
       if (error instanceof ApiError) {
         setSyncWarning(getProfileErrorMessage(error))
       } else {
-        setSyncWarning('The background sync request did not complete.')
+        setSyncWarning('History is taking longer than usual to refresh.')
       }
     })
   }, [summonerId])
@@ -88,8 +85,8 @@ export function ProfilePage() {
         .then((response) => {
           setDashboard(response)
         })
-        .catch((error: unknown) => {
-          setErrorMessage(getProfileErrorMessage(error))
+        .catch(() => {
+          setSyncWarning('Live progress is delayed. The profile will update again shortly.')
         })
     }, intervalMs)
 
@@ -101,11 +98,8 @@ export function ProfilePage() {
   const syncSummary = useMemo(() => {
     if (!dashboard) return null
 
-    const lastSyncText = dashboard.sync.lastSyncAt
-      ? `Last sync ${formatDateTime(dashboard.sync.lastSyncAt)}.`
-      : 'No sync completed yet.'
-
-    return `${dashboard.sync.backfillCursor}/${dashboard.sync.targetMatchCount} history slots scanned. ${dashboard.sync.remainingMatchCount} remaining to target. ${lastSyncText}`
+    const syncedMatches = Math.max(dashboard.sync.targetMatchCount - dashboard.sync.remainingMatchCount, 0)
+    return `${syncedMatches} of ${dashboard.sync.targetMatchCount} matches synced`
   }, [dashboard])
 
   async function refreshProfile() {
@@ -142,7 +136,7 @@ export function ProfilePage() {
 
     const champion = resolveChampionQuery(enemyChampionInput.trim())
     if (!champion) {
-      setEntryError('Enter a valid champion name.')
+      setEntryError('Enter an enemy champion name to continue.')
       return
     }
 
@@ -152,11 +146,10 @@ export function ProfilePage() {
 
   if (missingSummonerId) {
     return (
-      <section className="profile-state">
-        <p className="section-label">Profile error</p>
-        <h1>Could not load this profile</h1>
-        <p className="state-copy">Missing summoner id.</p>
-        <Link className="inline-link" to="/">
+      <section className="workspace-state">
+        <h1>We could not open that profile.</h1>
+        <p>Please go back and search for the account again.</p>
+        <Link className="ghost-link" to="/">
           Back to search
         </Link>
       </section>
@@ -165,21 +158,19 @@ export function ProfilePage() {
 
   if (status === 'loading') {
     return (
-      <section className="profile-state">
-        <p className="section-label">Profile loading</p>
-        <h1>Loading stored profile</h1>
-        <p className="state-copy">Fetching precomputed dashboard data from the backend.</p>
+      <section className="workspace-state">
+        <h1>Loading profile</h1>
+        <p>Pulling the latest dashboard view.</p>
       </section>
     )
   }
 
   if (status === 'error' || dashboard == null) {
     return (
-      <section className="profile-state">
-        <p className="section-label">Profile error</p>
-        <h1>Could not load this profile</h1>
-        <p className="state-copy">{errorMessage}</p>
-        <Link className="inline-link" to="/">
+      <section className="workspace-state">
+        <h1>We could not open that profile.</h1>
+        <p>{errorMessage}</p>
+        <Link className="ghost-link" to="/">
           Back to search
         </Link>
       </section>
@@ -190,95 +181,88 @@ export function ProfilePage() {
     dashboard.analyzedMatches > 0 ||
     dashboard.bestCounters.length > 0 ||
     dashboard.worstMatchups.length > 0
+  const primaryChampion = dashboard.mostPlayedChampions[0]
+  const syncTone = getSyncTone(dashboard.sync.status)
+  const showSyncBanner = dashboard.sync.status !== 'COMPLETE' || syncWarning != null
 
   return (
-    <section className="profile-layout">
-      <header className="profile-header">
-        <div>
-          <p className="section-label">Stored profile</p>
-          <h1>
-            {dashboard.summoner.gameName}
-            <span>#{dashboard.summoner.tagLine}</span>
+    <section className="workspace-layout">
+      <header className="workspace-header">
+        <div className="workspace-header-copy">
+          <h1 className="workspace-title">
+            {dashboard.summoner.gameName} <span>#{dashboard.summoner.tagLine}</span>
           </h1>
-          <p className="hero-copy">
-            Routing region {dashboard.summoner.region}. The page reads from stored data while
-            the backend worker keeps pulling 10-match batches toward the target history depth.
+          <p className="workspace-subtitle">
+            {formatRegion(dashboard.summoner.region)} | Personal draft dashboard
           </p>
         </div>
-        <div className="toolbar-actions">
+
+        <div className="workspace-header-actions">
           <button
-            className="secondary-button"
+            className="workspace-action-button secondary-action"
             type="button"
             onClick={refreshProfile}
             disabled={refreshStatus === 'refreshing'}
           >
-            {refreshStatus === 'refreshing' ? 'Queueing sync...' : 'Check for new matches'}
+            {refreshStatus === 'refreshing' ? 'Refreshing...' : 'Refresh'}
           </button>
-          <Link className="secondary-link" to="/">
-            Analyze another account
+          <Link className="workspace-action-button" to="/">
+            New Search
           </Link>
         </div>
       </header>
 
-      {syncSummary && (
-        <div className="import-banner" role="status">
-          <strong>Background sync</strong>
-          <span>{syncSummary}</span>
-        </div>
-      )}
-
-      {syncWarning && (
-        <div className="form-alert" role="status">
-          {syncWarning}
-        </div>
-      )}
-
-      <div className="stat-strip" aria-label="Profile summary">
-        <article className="stat-card">
-          <span>Analyzed matchups</span>
+      <section className="workspace-summary-strip" aria-label="Profile summary">
+        <article className="summary-metric-card">
+          <span>Analyzed Matchups</span>
           <strong>{dashboard.analyzedMatches}</strong>
         </article>
-        <article className="stat-card">
-          <span>Main role</span>
-          <strong>{dashboard.mainRole ?? 'Unknown'}</strong>
+        <article className="summary-metric-card">
+          <span>Main Role</span>
+          <strong>{formatRole(dashboard.mainRole)}</strong>
         </article>
-        <article className="stat-card">
-          <span>Last update</span>
-          <strong>{dashboard.lastUpdateAt ? formatDateTime(dashboard.lastUpdateAt) : 'Not imported yet'}</strong>
+        <article className="summary-metric-card">
+          <span>Last Update</span>
+          <strong>{dashboard.lastUpdateAt ? formatRelativeOrDate(dashboard.lastUpdateAt) : 'In progress'}</strong>
         </article>
-        <article className="stat-card">
-          <span>Sync status</span>
-          <strong>{formatSyncStatus(dashboard.sync.status)}</strong>
+        <article className="summary-metric-card">
+          <span>Sync Status</span>
+          <strong className={`status-pill status-pill-${syncTone}`}>{formatSyncStatus(dashboard.sync.status)}</strong>
         </article>
-      </div>
+      </section>
 
-      <section className="dashboard-panel">
-        <div className="panel-heading">
-          <h2>Find counters for one enemy champion</h2>
-          <p>Enter a champion name to load the stored personal counter ranking.</p>
+      {showSyncBanner && (
+        <section className="workspace-banner">
+          {dashboard.sync.status !== 'COMPLETE' && syncSummary && <strong>{syncSummary}</strong>}
+          {syncWarning && <span>{syncWarning}</span>}
+        </section>
+      )}
+
+      <section id="counter-search" className="dashboard-search-panel">
+        <div className="dashboard-search-copy">
+          <h2>Pick your opponent</h2>
+          <p>Search an enemy champion and open the personal counter list for that lane.</p>
         </div>
 
-        <form className="inline-form" onSubmit={handleEnemySubmit} noValidate>
-          <label className="field inline-field">
-            <span>Enemy champion</span>
-            <input
-              name="enemyChampion"
-              value={enemyChampionInput}
-              onChange={(event) => setEnemyChampionInput(event.target.value)}
-              placeholder="Zed"
-              list="champion-options"
-            />
-          </label>
-          <button className="primary-button compact-button" type="submit">
-            Open counters
+        <form className="dashboard-search-form" onSubmit={handleEnemySubmit} noValidate>
+          <input
+            name="enemyChampion"
+            value={enemyChampionInput}
+            onChange={(event) => setEnemyChampionInput(event.target.value)}
+            placeholder="Search enemy champion (for example Zed or Ahri)"
+            list="champion-options"
+          />
+          <button className="dashboard-search-button" type="submit">
+            Find Counters
           </button>
         </form>
 
         {entryError && (
-          <div className="form-alert inline-alert" role="alert">
+          <div className="page-alert compact-alert" role="alert">
             {entryError}
           </div>
         )}
+
         <datalist id="champion-options">
           {CHAMPIONS.map((champion) => (
             <option key={champion.id} value={champion.name} />
@@ -287,119 +271,207 @@ export function ProfilePage() {
       </section>
 
       {!hasAnalysis ? (
-        <section className="empty-panel">
-          <p className="section-label">No stored analysis yet</p>
-          <h2>This summoner exists locally, but no usable matchup history has been imported yet.</h2>
-          <p className="state-copy">
-            Keep this profile open while the background sync keeps pulling 10-match batches, or
-            manually queue another head check after the next game.
-          </p>
+        <section className="workspace-empty-card">
+          <h2>We are still building this profile.</h2>
+          <p>Match history is still syncing. Check back shortly for counters and matchup details.</p>
         </section>
       ) : (
-        <div className="dashboard-grid">
-          <section className="dashboard-panel">
-            <div className="panel-heading">
-              <h2>Most played champions</h2>
-              <p>Top stored matchup counts by champion.</p>
+        <section className="insight-grid">
+          <article className="insight-card">
+            <div className="insight-card-head">
+              <h2>Most Played</h2>
+              <span>Season view</span>
             </div>
-            <ul className="stack-list">
-              {dashboard.mostPlayedChampions.map((entry) => (
-                <li key={entry.championId}>
-                  <strong className="champion-cell">
-                    <img
-                      className="champion-avatar"
-                      src={getChampionById(entry.championId)?.image}
-                      alt=""
-                    />
-                    <span>{getChampionById(entry.championId)?.name ?? `Champion ${entry.championId}`}</span>
-                  </strong>
-                  <span>{entry.games} games</span>
-                </li>
-              ))}
-            </ul>
-          </section>
+            <div className="profile-list">
+              {dashboard.mostPlayedChampions.map((entry) => {
+                const champion = getChampionById(entry.championId)
+                return (
+                  <div key={entry.championId} className="profile-list-row">
+                    <div className="profile-list-identity">
+                      <img className="profile-list-avatar" src={champion?.image} alt="" />
+                      <div>
+                        <strong>{champion?.name ?? `Champion ${entry.championId}`}</strong>
+                        <span>{entry.games} games played</span>
+                      </div>
+                    </div>
+                    <span className="profile-list-emphasis">
+                      {dashboard.analyzedMatches > 0
+                        ? `${Math.round((entry.games / dashboard.analyzedMatches) * 100)}% share`
+                        : `${entry.games} games`}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </article>
 
-          <section className="dashboard-panel">
-            <div className="panel-heading">
-              <h2>Best counters</h2>
-              <p>Top stored recommendations by personal score.</p>
+          <article className="insight-card">
+            <div className="insight-card-head">
+              <h2>Best Counters</h2>
+              <span>Top comfort picks</span>
             </div>
-            <ul className="stack-list">
-              {dashboard.bestCounters.map((entry) => (
-                <li key={`${entry.enemyChampionId}-${entry.userChampionId}-${entry.role}`}>
-                  <strong>
-                    {getChampionById(entry.userChampionId)?.name ?? `Champion ${entry.userChampionId}`} into {getChampionById(entry.enemyChampionId)?.name ?? `Champion ${entry.enemyChampionId}`}
-                  </strong>
-                  <span>{entry.personalScore.toFixed(1)} score | {entry.games} games | {entry.role}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
+            <div className="rank-list">
+              {dashboard.bestCounters.map((entry) => {
+                const userChampion = getChampionById(entry.userChampionId)
+                const scoreWidth = Math.max(16, Math.min(entry.personalScore, 100))
+                return (
+                  <div key={`${entry.enemyChampionId}-${entry.userChampionId}-${entry.role}`} className="rank-row">
+                    <div className="rank-row-title">
+                      <img className="rank-row-avatar" src={userChampion?.image} alt="" />
+                      <strong>{userChampion?.name ?? `Champion ${entry.userChampionId}`}</strong>
+                    </div>
+                    <div className="rank-score">
+                      <span>{entry.personalScore.toFixed(1)}</span>
+                      <div className="rank-score-bar">
+                        <div style={{ width: `${scoreWidth}%` }} />
+                      </div>
+                    </div>
+                    <span className="rank-meta">{entry.games} games</span>
+                  </div>
+                )
+              })}
+            </div>
+          </article>
 
-          <section className="dashboard-panel">
-            <div className="panel-heading">
-              <h2>Worst matchups</h2>
-              <p>Lowest stored personal scores.</p>
+          <article className="insight-card">
+            <div className="insight-card-head">
+              <h2>Worst Matchups</h2>
+              <span>Draft caution</span>
             </div>
-            <ul className="stack-list">
-              {dashboard.worstMatchups.map((entry) => (
-                <li key={`${entry.enemyChampionId}-${entry.userChampionId}-${entry.role}`}>
-                  <strong>
-                    {getChampionById(entry.userChampionId)?.name ?? `Champion ${entry.userChampionId}`} into {getChampionById(entry.enemyChampionId)?.name ?? `Champion ${entry.enemyChampionId}`}
-                  </strong>
-                  <span>{entry.personalScore.toFixed(1)} score | {entry.games} games | {entry.role}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        </div>
+            <div className="threat-list">
+              {dashboard.worstMatchups.map((entry) => {
+                const enemyChampion = getChampionById(entry.enemyChampionId)
+                const userChampion = getChampionById(entry.userChampionId)
+                const safeWinrate = Math.max(0, Math.min(entry.winrate, 100))
+                return (
+                  <div key={`${entry.enemyChampionId}-${entry.userChampionId}-${entry.role}`} className="threat-row">
+                    <div className="threat-row-head">
+                      <strong>
+                        {userChampion?.name ?? `Champion ${entry.userChampionId}`} vs {enemyChampion?.name ?? `Champion ${entry.enemyChampionId}`}
+                      </strong>
+                      <span>{entry.winrate.toFixed(1)}% WR</span>
+                    </div>
+                    <div className="threat-bar">
+                      <div style={{ width: `${safeWinrate}%` }} />
+                    </div>
+                    <small>{formatRole(entry.role)}</small>
+                  </div>
+                )
+              })}
+            </div>
+          </article>
+        </section>
       )}
+
+      <footer className="workspace-footer">
+        <div className="workspace-footer-brand">
+          <strong>ComfortPick Analytics</strong>
+          <p>
+            {primaryChampion
+              ? `${dashboard.summoner.gameName}'s profile is currently led by ${getChampionById(primaryChampion.championId)?.name ?? 'their top champion'}.`
+              : 'ComfortPick turns personal match history into faster draft decisions.'}
+          </p>
+        </div>
+        <div className="workspace-footer-links">
+          <span>Privacy Policy</span>
+          <span>Terms of Service</span>
+          <span>Support</span>
+        </div>
+      </footer>
     </section>
   )
 }
 
-function formatDateTime(value: string): string {
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(value))
+function formatRegion(region: string): string {
+  switch (region.toUpperCase()) {
+    case 'AMERICAS':
+      return 'North America'
+    case 'EUROPE':
+      return 'Europe West'
+    case 'ASIA':
+      return 'Korea / Japan'
+    case 'SEA':
+      return 'Southeast Asia'
+    default:
+      return region
+  }
+}
+
+function formatRole(role: string | null): string {
+  if (!role) return 'No main role yet'
+
+  switch (role.toUpperCase()) {
+    case 'TOP':
+      return 'Top Lane'
+    case 'JUNGLE':
+      return 'Jungle'
+    case 'MIDDLE':
+      return 'Mid Lane'
+    case 'BOTTOM':
+      return 'Bot Lane'
+    case 'UTILITY':
+      return 'Support'
+    default:
+      return role.toLowerCase().replace('_', ' ')
+  }
+}
+
+function formatRelativeOrDate(value: string): string {
+  const date = new Date(value)
+  const diffMs = Date.now() - date.getTime()
+  const diffMinutes = Math.round(diffMs / 60000)
+
+  if (diffMinutes < 1) return 'Just now'
+  if (diffMinutes < 60) return `${diffMinutes}m ago`
+
+  const diffHours = Math.round(diffMinutes / 60)
+  if (diffHours < 24) return `${diffHours}h ago`
+
+  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(date)
 }
 
 function formatSyncStatus(status: ProfileDashboardResponse['sync']['status']): string {
   switch (status) {
     case 'ACTIVE':
-      return 'Queued'
     case 'RUNNING':
-      return 'Running'
+      return 'Syncing'
     case 'RATE_LIMITED':
-      return 'Rate limited'
+      return 'Cooling down'
     case 'FAILED':
-      return 'Retry scheduled'
+      return 'Retrying'
     case 'COMPLETE':
-      return 'Target reached'
+      return 'Live'
     default:
-      return 'Idle'
+      return 'Ready'
+  }
+}
+
+function getSyncTone(status: ProfileDashboardResponse['sync']['status']): 'green' | 'blue' | 'amber' {
+  switch (status) {
+    case 'COMPLETE':
+      return 'green'
+    case 'RATE_LIMITED':
+    case 'FAILED':
+      return 'amber'
+    default:
+      return 'blue'
   }
 }
 
 function getProfileErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.code === 'SUMMONER_PROFILE_NOT_FOUND') {
-      return 'This stored summoner id does not exist in the backend.'
-    }
-
-    if (error.code === 'RIOT_API_UNAUTHORIZED') {
-      return 'The Riot API key is unavailable or invalid on the backend.'
+      return 'We could not find that profile.'
     }
 
     if (error.code === 'RIOT_API_RATE_LIMIT') {
       return error.retryAfterSeconds != null
-        ? `Riot rate limit reached. Retry in about ${error.retryAfterSeconds} seconds.`
-        : 'Riot rate limit reached. Retry in a moment.'
+        ? `History is updating slowly right now. Try again in about ${error.retryAfterSeconds} seconds.`
+        : 'History is updating slowly right now. Try again in a moment.'
     }
 
-    return error.message
+    return 'This profile is temporarily unavailable.'
   }
 
-  return 'Unexpected frontend error while loading the profile.'
+  return 'This profile is temporarily unavailable.'
 }
