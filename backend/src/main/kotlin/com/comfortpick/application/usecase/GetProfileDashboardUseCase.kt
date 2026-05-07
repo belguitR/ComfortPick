@@ -53,6 +53,17 @@ class GetProfileDashboardUseCase(
                 )
             },
             lastUpdateAt = snapshot.lastUpdateAt,
+            sync = DashboardSyncState(
+                enabled = snapshot.sync.enabled,
+                status = snapshot.sync.status,
+                targetMatchCount = snapshot.sync.targetMatchCount,
+                backfillCursor = snapshot.sync.backfillCursor,
+                remainingMatchCount = maxOf(snapshot.sync.targetMatchCount - snapshot.sync.backfillCursor, 0),
+                nextRunAt = snapshot.sync.nextRunAt,
+                lastSyncAt = snapshot.sync.lastSyncAt,
+                lastErrorCode = snapshot.sync.lastErrorCode,
+                lastErrorMessage = snapshot.sync.lastErrorMessage,
+            ),
         )
     }
 }
@@ -69,6 +80,7 @@ data class GetProfileDashboardResult(
     val bestCounters: List<DashboardCounterSummary>,
     val worstMatchups: List<DashboardCounterSummary>,
     val lastUpdateAt: LocalDateTime?,
+    val sync: DashboardSyncState,
 )
 
 data class DashboardSummoner(
@@ -90,4 +102,16 @@ data class DashboardCounterSummary(
     val games: Int,
     val winrate: Double,
     val personalScore: Double,
+)
+
+data class DashboardSyncState(
+    val enabled: Boolean,
+    val status: String,
+    val targetMatchCount: Int,
+    val backfillCursor: Int,
+    val remainingMatchCount: Int,
+    val nextRunAt: LocalDateTime?,
+    val lastSyncAt: LocalDateTime?,
+    val lastErrorCode: String?,
+    val lastErrorMessage: String?,
 )

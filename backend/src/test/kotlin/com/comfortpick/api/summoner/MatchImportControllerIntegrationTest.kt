@@ -104,7 +104,7 @@ class MatchImportControllerIntegrationTest {
             ),
         )
 
-        given(riotApiPort.getMatchIdsByPuuid(RiotRoutingRegion.EUROPE, account.puuid, 0, 100))
+        given(riotApiPort.getMatchIdsByPuuid(RiotRoutingRegion.EUROPE, account.puuid, 0, 10))
             .willReturn(listOf("EUW1_EXISTING", "EUW1_NEW"))
         given(riotApiPort.getMatchDetails(RiotRoutingRegion.EUROPE, "EUW1_NEW"))
             .willReturn(buildMatchDetails("EUW1_NEW", account.puuid))
@@ -129,7 +129,7 @@ class MatchImportControllerIntegrationTest {
     @Test
     fun `duplicate imports are safe`() {
         val account = saveAccount()
-        given(riotApiPort.getMatchIdsByPuuid(RiotRoutingRegion.EUROPE, account.puuid, 0, 100))
+        given(riotApiPort.getMatchIdsByPuuid(RiotRoutingRegion.EUROPE, account.puuid, 0, 10))
             .willReturn(listOf("EUW1_DUPLICATE"))
         given(riotApiPort.getMatchDetails(RiotRoutingRegion.EUROPE, "EUW1_DUPLICATE"))
             .willReturn(buildMatchDetails("EUW1_DUPLICATE", account.puuid))
@@ -163,7 +163,7 @@ class MatchImportControllerIntegrationTest {
     @Test
     fun `keeps imported match but skips matchup row when extraction cannot determine opponent`() {
         val account = saveAccount()
-        given(riotApiPort.getMatchIdsByPuuid(RiotRoutingRegion.EUROPE, account.puuid, 0, 100))
+        given(riotApiPort.getMatchIdsByPuuid(RiotRoutingRegion.EUROPE, account.puuid, 0, 10))
             .willReturn(listOf("EUW1_FAIL"))
         given(riotApiPort.getMatchDetails(RiotRoutingRegion.EUROPE, "EUW1_FAIL"))
             .willReturn(buildMatchDetails("EUW1_FAIL", account.puuid))
@@ -194,7 +194,7 @@ class MatchImportControllerIntegrationTest {
     @Test
     fun `rolls back stored match when matchup persistence fails`() {
         val account = saveAccount()
-        given(riotApiPort.getMatchIdsByPuuid(RiotRoutingRegion.EUROPE, account.puuid, 0, 100))
+        given(riotApiPort.getMatchIdsByPuuid(RiotRoutingRegion.EUROPE, account.puuid, 0, 10))
             .willReturn(listOf("EUW1_FAIL"))
         given(riotApiPort.getMatchDetails(RiotRoutingRegion.EUROPE, "EUW1_FAIL"))
             .willReturn(buildMatchDetails("EUW1_FAIL", account.puuid))
@@ -208,6 +208,22 @@ class MatchImportControllerIntegrationTest {
 
         assertEquals(0, matchRepository.count())
         assertEquals(0, playerMatchupRepository.count())
+    }
+
+    @Test
+    fun `caps requested import count at max limit`() {
+        val account = saveAccount()
+        given(riotApiPort.getMatchIdsByPuuid(RiotRoutingRegion.EUROPE, account.puuid, 0, 20))
+            .willReturn(emptyList())
+
+        mockMvc.post("/api/summoners/${account.id}/matches/import?count=999")
+            .andExpect {
+                status { isOk() }
+                jsonPath("$.importedMatchCount", equalTo(0))
+                jsonPath("$.existingMatchCount", equalTo(0))
+                jsonPath("$.importedMatchupCount", equalTo(0))
+                jsonPath("$.skippedMatchupCount", equalTo(0))
+            }
     }
 
     private fun saveAccount(): RiotAccountEntity =

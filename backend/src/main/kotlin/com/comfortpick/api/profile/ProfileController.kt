@@ -6,11 +6,15 @@ import com.comfortpick.application.usecase.GetEnemyChampionCountersCommand
 import com.comfortpick.application.usecase.GetEnemyChampionCountersUseCase
 import com.comfortpick.application.usecase.GetPersonalMatchupDetailCommand
 import com.comfortpick.application.usecase.GetPersonalMatchupDetailUseCase
+import com.comfortpick.application.usecase.RequestSummonerHistorySyncCommand
+import com.comfortpick.application.usecase.RequestSummonerHistorySyncUseCase
+import com.comfortpick.infrastructure.config.HistorySyncProperties
 import com.comfortpick.domain.model.ConfidenceLevel
 import com.comfortpick.domain.model.RecommendationStatus
 import java.time.LocalDateTime
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import java.util.UUID
@@ -21,6 +25,8 @@ class ProfileController(
     private val getProfileDashboardUseCase: GetProfileDashboardUseCase,
     private val getEnemyChampionCountersUseCase: GetEnemyChampionCountersUseCase,
     private val getPersonalMatchupDetailUseCase: GetPersonalMatchupDetailUseCase,
+    private val requestSummonerHistorySyncUseCase: RequestSummonerHistorySyncUseCase,
+    private val historySyncProperties: HistorySyncProperties,
 ) {
     @GetMapping("/{summonerId}")
     fun getProfileDashboard(
@@ -68,6 +74,38 @@ class ProfileController(
                 )
             },
             lastUpdateAt = result.lastUpdateAt,
+            sync = ProfileSyncResponse(
+                enabled = result.sync.enabled,
+                status = result.sync.status,
+                targetMatchCount = result.sync.targetMatchCount,
+                backfillCursor = result.sync.backfillCursor,
+                remainingMatchCount = result.sync.remainingMatchCount,
+                nextRunAt = result.sync.nextRunAt,
+                lastSyncAt = result.sync.lastSyncAt,
+                lastErrorCode = result.sync.lastErrorCode,
+                lastErrorMessage = result.sync.lastErrorMessage,
+                dashboardPollIntervalSeconds = historySyncProperties.dashboardPollInterval.seconds,
+            ),
+        )
+    }
+
+    @PostMapping("/{summonerId}/sync")
+    fun requestProfileSync(
+        @PathVariable summonerId: UUID,
+    ): ProfileSyncRequestResponse {
+        val result = requestSummonerHistorySyncUseCase.execute(
+            RequestSummonerHistorySyncCommand(
+                summonerId = summonerId,
+                targetMatchCount = historySyncProperties.targetMatches,
+            ),
+        )
+
+        return ProfileSyncRequestResponse(
+            summonerId = result.summonerId,
+            status = result.syncStatus,
+            targetMatchCount = result.targetMatchCount,
+            backfillCursor = result.backfillCursor,
+            nextRunAt = result.nextRunAt,
         )
     }
 
@@ -197,6 +235,7 @@ data class ProfileDashboardResponse(
     val bestCounters: List<ProfileCounterSummaryResponse>,
     val worstMatchups: List<ProfileCounterSummaryResponse>,
     val lastUpdateAt: java.time.LocalDateTime?,
+    val sync: ProfileSyncResponse,
 )
 
 data class ProfileDashboardSummonerResponse(
@@ -218,6 +257,27 @@ data class ProfileCounterSummaryResponse(
     val games: Int,
     val winrate: Double,
     val personalScore: Double,
+)
+
+data class ProfileSyncResponse(
+    val enabled: Boolean,
+    val status: String,
+    val targetMatchCount: Int,
+    val backfillCursor: Int,
+    val remainingMatchCount: Int,
+    val nextRunAt: LocalDateTime?,
+    val lastSyncAt: LocalDateTime?,
+    val lastErrorCode: String?,
+    val lastErrorMessage: String?,
+    val dashboardPollIntervalSeconds: Long,
+)
+
+data class ProfileSyncRequestResponse(
+    val summonerId: UUID,
+    val status: String,
+    val targetMatchCount: Int,
+    val backfillCursor: Int,
+    val nextRunAt: LocalDateTime?,
 )
 
 data class PersonalMatchupDetailResponse(

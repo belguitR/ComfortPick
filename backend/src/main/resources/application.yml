@@ -35,3 +35,12 @@ riot:
   api:
     key: ${RIOT_API_KEY:}
     timeout: ${RIOT_API_TIMEOUT:5s}
+
+comfortpick:
+  sync:
+    target-matches: ${COMFORTPICK_SYNC_TARGET_MATCHES:500}
+    batch-size: ${COMFORTPICK_SYNC_BATCH_SIZE:10}
+    scheduler-interval: ${COMFORTPICK_SYNC_SCHEDULER_INTERVAL:30s}
+    dashboard-poll-interval: ${COMFORTPICK_SYNC_DASHBOARD_POLL_INTERVAL:10s}
+    max-accounts-per-tick: ${COMFORTPICK_SYNC_MAX_ACCOUNTS_PER_TICK:1}
+    error-retry-delay: ${COMFORTPICK_SYNC_ERROR_RETRY_DELAY:5m}

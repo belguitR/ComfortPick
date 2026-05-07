@@ -28,13 +28,28 @@ class ImportMatchHistoryUseCase(
     fun execute(command: ImportMatchHistoryCommand): ImportMatchHistoryResult {
         val account = riotAccountStore.findById(command.summonerId)
             ?: throw SummonerProfileNotFoundException(command.summonerId)
-
         val routingRegion = RiotRoutingRegion.fromValue(account.region)
+
+        return importBatch(
+            account = account,
+            routingRegion = routingRegion,
+            matchStart = command.matchStart,
+            matchCount = command.matchCount.coerceIn(1, MAX_IMPORT_MATCH_COUNT),
+        )
+    }
+
+    @Transactional
+    fun importBatch(
+        account: com.comfortpick.domain.model.RiotAccount,
+        routingRegion: RiotRoutingRegion,
+        matchStart: Int,
+        matchCount: Int,
+    ): ImportMatchHistoryResult {
         val recentMatchIds = riotApiPort.getMatchIdsByPuuid(
             routingRegion = routingRegion,
             puuid = account.puuid,
-            start = 0,
-            count = RECENT_MATCH_COUNT,
+            start = matchStart,
+            count = matchCount,
         )
 
         val existingMatchIds = matchImportStore.findExistingMatchIds(recentMatchIds)
@@ -108,6 +123,7 @@ class ImportMatchHistoryUseCase(
         }
 
         return ImportMatchHistoryResult(
+            fetchedMatchCount = recentMatchIds.size,
             importedMatchCount = importedMatchCount,
             existingMatchCount = existingMatchIds.size,
             importedMatchupCount = importedMatchupCount,
@@ -116,15 +132,19 @@ class ImportMatchHistoryUseCase(
     }
 
     companion object {
-        private const val RECENT_MATCH_COUNT = 100
+        const val DEFAULT_IMPORT_MATCH_COUNT = 10
+        const val MAX_IMPORT_MATCH_COUNT = 20
     }
 }
 
 data class ImportMatchHistoryCommand(
     val summonerId: UUID,
+    val matchStart: Int = 0,
+    val matchCount: Int = ImportMatchHistoryUseCase.DEFAULT_IMPORT_MATCH_COUNT,
 )
 
 data class ImportMatchHistoryResult(
+    val fetchedMatchCount: Int,
     val importedMatchCount: Int,
     val existingMatchCount: Int,
     val importedMatchupCount: Int,

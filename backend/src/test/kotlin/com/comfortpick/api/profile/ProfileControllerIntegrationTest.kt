@@ -23,6 +23,7 @@ import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.get
+import org.springframework.test.web.servlet.post
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -150,6 +151,9 @@ class ProfileControllerIntegrationTest {
                 jsonPath("$.worstMatchups[0].userChampionId", equalTo(7))
                 jsonPath("$.worstMatchups[0].personalScore", equalTo(42.0))
                 jsonPath("$.lastUpdateAt", startsWith(now.minusHours(6).toLocalDate().toString()))
+                jsonPath("$.sync.status", equalTo("IDLE"))
+                jsonPath("$.sync.targetMatchCount", equalTo(500))
+                jsonPath("$.sync.backfillCursor", equalTo(0))
             }
 
         verifyNoInteractions(riotApiPort)
@@ -169,8 +173,29 @@ class ProfileControllerIntegrationTest {
                 jsonPath("$.bestCounters", hasSize<Any>(0))
                 jsonPath("$.worstMatchups", hasSize<Any>(0))
                 jsonPath("$.lastUpdateAt", nullValue())
+                jsonPath("$.sync.status", equalTo("IDLE"))
             }
 
+        verifyNoInteractions(riotApiPort)
+    }
+
+    @Test
+    fun `queues profile sync without calling Riot immediately`() {
+        val account = saveAccount("sync-request-puuid")
+
+        mockMvc.post("/api/profiles/${account.id}/sync")
+            .andExpect {
+                status { isOk() }
+                jsonPath("$.summonerId", equalTo(account.id.toString()))
+                jsonPath("$.status", equalTo("ACTIVE"))
+                jsonPath("$.targetMatchCount", equalTo(500))
+                jsonPath("$.backfillCursor", equalTo(0))
+            }
+
+        val storedAccount = riotAccountRepository.findById(account.id).orElseThrow()
+        kotlin.test.assertEquals(true, storedAccount.autoSyncEnabled)
+        kotlin.test.assertEquals("ACTIVE", storedAccount.syncStatus)
+        kotlin.test.assertNotNull(storedAccount.syncNextRunAt)
         verifyNoInteractions(riotApiPort)
     }
 

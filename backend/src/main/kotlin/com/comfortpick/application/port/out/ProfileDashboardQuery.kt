@@ -14,6 +14,7 @@ data class ProfileDashboardSnapshot(
     val bestCounters: List<StoredProfileCounter>,
     val worstMatchups: List<StoredProfileCounter>,
     val lastUpdateAt: LocalDateTime?,
+    val sync: ProfileSyncSnapshot,
 )
 
 data class ChampionPlayCount(
@@ -28,4 +29,15 @@ data class StoredProfileCounter(
     val games: Int,
     val winrate: Double,
     val personalScore: Double,
+)
+
+data class ProfileSyncSnapshot(
+    val enabled: Boolean,
+    val status: String,
+    val targetMatchCount: Int,
+    val backfillCursor: Int,
+    val nextRunAt: LocalDateTime?,
+    val lastSyncAt: LocalDateTime?,
+    val lastErrorCode: String?,
+    val lastErrorMessage: String?,
 )

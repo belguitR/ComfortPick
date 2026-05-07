@@ -12,6 +12,7 @@ export type SearchSummonerResponse = {
 }
 
 export type ImportMatchHistoryResponse = {
+  fetchedMatchCount: number
   importedMatchCount: number
   existingMatchCount: number
   importedMatchupCount: number
@@ -48,6 +49,26 @@ export type ProfileDashboardResponse = {
     personalScore: number
   }>
   lastUpdateAt: string | null
+  sync: {
+    enabled: boolean
+    status: 'IDLE' | 'ACTIVE' | 'RUNNING' | 'RATE_LIMITED' | 'FAILED' | 'COMPLETE'
+    targetMatchCount: number
+    backfillCursor: number
+    remainingMatchCount: number
+    nextRunAt: string | null
+    lastSyncAt: string | null
+    lastErrorCode: string | null
+    lastErrorMessage: string | null
+    dashboardPollIntervalSeconds: number
+  }
+}
+
+export type ProfileSyncRequestResponse = {
+  summonerId: string
+  status: 'IDLE' | 'ACTIVE' | 'RUNNING' | 'RATE_LIMITED' | 'FAILED' | 'COMPLETE'
+  targetMatchCount: number
+  backfillCursor: number
+  nextRunAt: string | null
 }
 
 export type PersonalCounterResponse = {
@@ -126,9 +147,21 @@ export async function searchSummoner(input: {
   )
 }
 
-export async function importMatchHistory(summonerId: string): Promise<ImportMatchHistoryResponse> {
+export async function importMatchHistory(
+  summonerId: string,
+  options?: { start?: number; count?: number },
+): Promise<ImportMatchHistoryResponse> {
+  const query = new URLSearchParams()
+  if (options?.start != null) {
+    query.set('start', String(options.start))
+  }
+  if (options?.count != null) {
+    query.set('count', String(options.count))
+  }
+
+  const suffix = query.size > 0 ? `?${query.toString()}` : ''
   return apiRequest<ImportMatchHistoryResponse>(
-    `/api/summoners/${encodeURIComponent(summonerId)}/matches/import`,
+    `/api/summoners/${encodeURIComponent(summonerId)}/matches/import${suffix}`,
     {
       method: 'POST',
     },
@@ -138,6 +171,15 @@ export async function importMatchHistory(summonerId: string): Promise<ImportMatc
 export async function getProfileDashboard(summonerId: string): Promise<ProfileDashboardResponse> {
   return apiRequest<ProfileDashboardResponse>(
     `/api/profiles/${encodeURIComponent(summonerId)}`,
+  )
+}
+
+export async function requestProfileSync(summonerId: string): Promise<ProfileSyncRequestResponse> {
+  return apiRequest<ProfileSyncRequestResponse>(
+    `/api/profiles/${encodeURIComponent(summonerId)}/sync`,
+    {
+      method: 'POST',
+    },
   )
 }
 

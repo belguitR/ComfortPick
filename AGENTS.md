@@ -11,10 +11,10 @@ Read these files first:
 
 ## Current status
 
-- Tasks 0 through 15 are implemented locally.
-- Tasks 0 through 11 are already pushed on `origin/main`.
+- Tasks 0 through 16 are implemented locally.
+- Latest local work adds progressive history sync and dashboard sync state.
 - Check `git status` and `git log` before claiming remote state for the latest task.
-- Current next planned task: Task 16, production hardening.
+- Current next planned task: Task 17, production hardening.
 - Frontend is temporarily desktop-first by user instruction. Mobile verification is intentionally deferred for now.
 
 ## Product rule
@@ -59,12 +59,17 @@ Endpoint:
 
 Current implemented rules:
 
-- fetch up to `100` recent Riot match IDs
+- fetch match IDs in bounded batches
 - do not refetch match details for a `riot_match_id` already present in `matches`
 - store every new match in `matches`
 - try to extract one personal matchup row for the tracked summoner
 - if extraction fails because the role/opponent cannot be determined, keep the `matches` row and skip the `player_matchups` row
 - unexpected runtime or persistence failures should still roll back the transaction
+
+Current batch limits:
+
+- default count: `10`
+- maximum count: `20`
 
 Current response fields:
 
@@ -72,7 +77,43 @@ Current response fields:
 - `existingMatchCount`: Riot match IDs already known locally
 - `importedMatchupCount`: new `player_matchups` rows stored
 - `skippedMatchupCount`: new matches where extraction failed
+- `fetchedMatchCount`: Riot match IDs returned for that request page
 - if `importedMatchupCount > 0`, trigger recalculation of `personal_matchup_stats` for that summoner
+
+## Current background sync behavior
+
+Endpoints:
+
+- `POST /api/profiles/{summonerId}/sync`
+- `GET /api/profiles/{summonerId}`
+
+Current implemented rules:
+
+- sync state is persisted on `riot_accounts`
+- search queues sync after summoner lookup
+- profile page queues sync on open
+- one scheduler tick processes at most one account
+- each cycle:
+  - checks the newest `10` matches at `start = 0`
+  - imports only missing head matches
+  - shifts the older-history cursor by the number of new head matches
+  - backfills one older `10`-match page toward the `500`-match target
+- dashboard exposes:
+  - sync status
+  - backfill cursor
+  - remaining match count
+  - next run time
+  - last sync time
+  - last error
+
+Current sync statuses:
+
+- `IDLE`
+- `ACTIVE`
+- `RUNNING`
+- `RATE_LIMITED`
+- `FAILED`
+- `COMPLETE`
 
 ## Current matchup stats recalculation
 

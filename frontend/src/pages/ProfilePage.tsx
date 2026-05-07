@@ -1,16 +1,13 @@
 import type { FormEvent } from 'react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ApiError } from '../lib/api/client'
-import { getProfileDashboard, importMatchHistory } from '../lib/api/comfortpick'
-import type {
-  ImportMatchHistoryResponse,
-  ProfileDashboardResponse,
-  SearchSummonerResponse,
-} from '../lib/api/comfortpick'
+import { getProfileDashboard, requestProfileSync } from '../lib/api/comfortpick'
+import { CHAMPIONS, getChampionById, resolveChampionQuery } from '../lib/champions'
+import type { ProfileDashboardResponse, SearchSummonerResponse } from '../lib/api/comfortpick'
 
 type NavigationState = {
-  importResult?: ImportMatchHistoryResponse
+  syncWarning?: string
   summoner?: SearchSummonerResponse
 }
 
@@ -25,9 +22,8 @@ export function ProfilePage() {
   const [refreshStatus, setRefreshStatus] = useState<'idle' | 'refreshing'>('idle')
   const [enemyChampionInput, setEnemyChampionInput] = useState('')
   const [entryError, setEntryError] = useState<string | null>(null)
-  const [importSummaryState, setImportSummaryState] = useState<ImportMatchHistoryResponse | null>(
-    navigationState?.importResult ?? null,
-  )
+  const [syncWarning, setSyncWarning] = useState<string | null>(navigationState?.syncWarning ?? null)
+  const syncRequestedRef = useRef(false)
   const missingSummonerId = !summonerId
 
   useEffect(() => {
@@ -37,29 +33,80 @@ export function ProfilePage() {
 
     let active = true
 
-    void getProfileDashboard(summonerId)
-      .then((response) => {
+    const loadDashboard = async () => {
+      try {
+        const response = await getProfileDashboard(summonerId)
         if (!active) return
         setDashboard(response)
         setStatus('ready')
-      })
-      .catch((error: unknown) => {
+      } catch (error: unknown) {
         if (!active) return
         setStatus('error')
         setErrorMessage(getProfileErrorMessage(error))
-      })
+      }
+    }
+
+    void loadDashboard()
 
     return () => {
       active = false
     }
   }, [missingSummonerId, summonerId])
 
-  const importSummary = useMemo(() => {
-    const result = importSummaryState
-    if (!result) return null
+  useEffect(() => {
+    if (!summonerId || syncRequestedRef.current) {
+      return
+    }
 
-    return `${result.importedMatchCount} new matches, ${result.existingMatchCount} already stored, ${result.importedMatchupCount} matchup rows added, ${result.skippedMatchupCount} skipped.`
-  }, [importSummaryState])
+    syncRequestedRef.current = true
+    void requestProfileSync(summonerId).catch((error: unknown) => {
+      if (error instanceof ApiError) {
+        setSyncWarning(getProfileErrorMessage(error))
+      } else {
+        setSyncWarning('The background sync request did not complete.')
+      }
+    })
+  }, [summonerId])
+
+  useEffect(() => {
+    if (!summonerId || !dashboard) {
+      return
+    }
+
+    const shouldPoll = dashboard.sync.enabled && (
+      dashboard.sync.status === 'ACTIVE' ||
+      dashboard.sync.status === 'RUNNING' ||
+      dashboard.sync.status === 'RATE_LIMITED'
+    )
+    if (!shouldPoll) {
+      return
+    }
+
+    const intervalMs = Math.max(dashboard.sync.dashboardPollIntervalSeconds, 5) * 1000
+    const handle = window.setInterval(() => {
+      void getProfileDashboard(summonerId)
+        .then((response) => {
+          setDashboard(response)
+        })
+        .catch((error: unknown) => {
+          setErrorMessage(getProfileErrorMessage(error))
+        })
+    }, intervalMs)
+
+    return () => {
+      window.clearInterval(handle)
+    }
+  }, [dashboard, summonerId])
+
+  const syncSummary = useMemo(() => {
+    if (!dashboard) return null
+
+    const lastSyncText = dashboard.sync.lastSyncAt
+      ? `Last sync ${formatDateTime(dashboard.sync.lastSyncAt)}.`
+      : 'No sync completed yet.'
+
+    return `${dashboard.sync.backfillCursor}/${dashboard.sync.targetMatchCount} history slots scanned. ${dashboard.sync.remainingMatchCount} remaining to target. ${lastSyncText}`
+  }, [dashboard])
 
   async function refreshProfile() {
     if (!summonerId) {
@@ -70,14 +117,18 @@ export function ProfilePage() {
     setEntryError(null)
 
     try {
-      const importResult = await importMatchHistory(summonerId)
+      await requestProfileSync(summonerId)
       const refreshedDashboard = await getProfileDashboard(summonerId)
-      setImportSummaryState(importResult)
+      setSyncWarning(null)
       setDashboard(refreshedDashboard)
       setStatus('ready')
     } catch (error) {
-      setStatus('error')
-      setErrorMessage(getProfileErrorMessage(error))
+      if (error instanceof ApiError) {
+        setSyncWarning(getProfileErrorMessage(error))
+      } else {
+        setStatus('error')
+        setErrorMessage(getProfileErrorMessage(error))
+      }
     } finally {
       setRefreshStatus('idle')
     }
@@ -89,14 +140,14 @@ export function ProfilePage() {
       return
     }
 
-    const normalizedValue = Number(enemyChampionInput.trim())
-    if (!Number.isInteger(normalizedValue) || normalizedValue <= 0) {
-      setEntryError('Enter a positive champion id.')
+    const champion = resolveChampionQuery(enemyChampionInput.trim())
+    if (!champion) {
+      setEntryError('Enter a valid champion name.')
       return
     }
 
     setEntryError(null)
-    navigate(`/profiles/${summonerId}/enemies/${normalizedValue}`)
+    navigate(`/profiles/${summonerId}/enemies/${champion.id}`)
   }
 
   if (missingSummonerId) {
@@ -150,8 +201,8 @@ export function ProfilePage() {
             <span>#{dashboard.summoner.tagLine}</span>
           </h1>
           <p className="hero-copy">
-            Routing region {dashboard.summoner.region}. This profile page is fed from stored
-            dashboard data after the import cycle completes.
+            Routing region {dashboard.summoner.region}. The page reads from stored data while
+            the backend worker keeps pulling 10-match batches toward the target history depth.
           </p>
         </div>
         <div className="toolbar-actions">
@@ -161,7 +212,7 @@ export function ProfilePage() {
             onClick={refreshProfile}
             disabled={refreshStatus === 'refreshing'}
           >
-            {refreshStatus === 'refreshing' ? 'Refreshing...' : 'Refresh matches'}
+            {refreshStatus === 'refreshing' ? 'Queueing sync...' : 'Check for new matches'}
           </button>
           <Link className="secondary-link" to="/">
             Analyze another account
@@ -169,10 +220,16 @@ export function ProfilePage() {
         </div>
       </header>
 
-      {importSummary && (
+      {syncSummary && (
         <div className="import-banner" role="status">
-          <strong>Latest import</strong>
-          <span>{importSummary}</span>
+          <strong>Background sync</strong>
+          <span>{syncSummary}</span>
+        </div>
+      )}
+
+      {syncWarning && (
+        <div className="form-alert" role="status">
+          {syncWarning}
         </div>
       )}
 
@@ -189,23 +246,27 @@ export function ProfilePage() {
           <span>Last update</span>
           <strong>{dashboard.lastUpdateAt ? formatDateTime(dashboard.lastUpdateAt) : 'Not imported yet'}</strong>
         </article>
+        <article className="stat-card">
+          <span>Sync status</span>
+          <strong>{formatSyncStatus(dashboard.sync.status)}</strong>
+        </article>
       </div>
 
       <section className="dashboard-panel">
         <div className="panel-heading">
           <h2>Find counters for one enemy champion</h2>
-          <p>Enter a champion id to load the stored personal counter ranking.</p>
+          <p>Enter a champion name to load the stored personal counter ranking.</p>
         </div>
 
         <form className="inline-form" onSubmit={handleEnemySubmit} noValidate>
           <label className="field inline-field">
-            <span>Enemy champion id</span>
+            <span>Enemy champion</span>
             <input
-              name="enemyChampionId"
-              inputMode="numeric"
+              name="enemyChampion"
               value={enemyChampionInput}
               onChange={(event) => setEnemyChampionInput(event.target.value)}
-              placeholder="238"
+              placeholder="Zed"
+              list="champion-options"
             />
           </label>
           <button className="primary-button compact-button" type="submit">
@@ -218,6 +279,11 @@ export function ProfilePage() {
             {entryError}
           </div>
         )}
+        <datalist id="champion-options">
+          {CHAMPIONS.map((champion) => (
+            <option key={champion.id} value={champion.name} />
+          ))}
+        </datalist>
       </section>
 
       {!hasAnalysis ? (
@@ -225,8 +291,8 @@ export function ProfilePage() {
           <p className="section-label">No stored analysis yet</p>
           <h2>This summoner exists locally, but no usable matchup history has been imported yet.</h2>
           <p className="state-copy">
-            Run refresh after your next import cycle, or start loading counters directly once
-            matchup stats exist.
+            Keep this profile open while the background sync keeps pulling 10-match batches, or
+            manually queue another head check after the next game.
           </p>
         </section>
       ) : (
@@ -234,12 +300,12 @@ export function ProfilePage() {
           <section className="dashboard-panel">
             <div className="panel-heading">
               <h2>Most played champions</h2>
-              <p>Top stored matchup counts by champion id.</p>
+              <p>Top stored matchup counts by champion.</p>
             </div>
             <ul className="stack-list">
               {dashboard.mostPlayedChampions.map((entry) => (
                 <li key={entry.championId}>
-                  <strong>Champion {entry.championId}</strong>
+                  <strong>{getChampionById(entry.championId)?.name ?? `Champion ${entry.championId}`}</strong>
                   <span>{entry.games} games</span>
                 </li>
               ))}
@@ -254,7 +320,9 @@ export function ProfilePage() {
             <ul className="stack-list">
               {dashboard.bestCounters.map((entry) => (
                 <li key={`${entry.enemyChampionId}-${entry.userChampionId}-${entry.role}`}>
-                  <strong>Champion {entry.userChampionId} into {entry.enemyChampionId}</strong>
+                  <strong>
+                    {getChampionById(entry.userChampionId)?.name ?? `Champion ${entry.userChampionId}`} into {getChampionById(entry.enemyChampionId)?.name ?? `Champion ${entry.enemyChampionId}`}
+                  </strong>
                   <span>{entry.personalScore.toFixed(1)} score | {entry.games} games | {entry.role}</span>
                 </li>
               ))}
@@ -269,7 +337,9 @@ export function ProfilePage() {
             <ul className="stack-list">
               {dashboard.worstMatchups.map((entry) => (
                 <li key={`${entry.enemyChampionId}-${entry.userChampionId}-${entry.role}`}>
-                  <strong>Champion {entry.userChampionId} into {entry.enemyChampionId}</strong>
+                  <strong>
+                    {getChampionById(entry.userChampionId)?.name ?? `Champion ${entry.userChampionId}`} into {getChampionById(entry.enemyChampionId)?.name ?? `Champion ${entry.enemyChampionId}`}
+                  </strong>
                   <span>{entry.personalScore.toFixed(1)} score | {entry.games} games | {entry.role}</span>
                 </li>
               ))}
@@ -286,6 +356,23 @@ function formatDateTime(value: string): string {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(value))
+}
+
+function formatSyncStatus(status: ProfileDashboardResponse['sync']['status']): string {
+  switch (status) {
+    case 'ACTIVE':
+      return 'Queued'
+    case 'RUNNING':
+      return 'Running'
+    case 'RATE_LIMITED':
+      return 'Rate limited'
+    case 'FAILED':
+      return 'Retry scheduled'
+    case 'COMPLETE':
+      return 'Target reached'
+    default:
+      return 'Idle'
+  }
 }
 
 function getProfileErrorMessage(error: unknown): string {

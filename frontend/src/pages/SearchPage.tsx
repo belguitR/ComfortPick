@@ -2,11 +2,8 @@ import type { FormEvent } from 'react'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ApiError } from '../lib/api/client'
-import {
-  importMatchHistory,
-  searchSummoner,
-} from '../lib/api/comfortpick'
-import type { RoutingRegion } from '../lib/api/comfortpick'
+import { requestProfileSync, searchSummoner } from '../lib/api/comfortpick'
+import type { RoutingRegion, SearchSummonerResponse } from '../lib/api/comfortpick'
 
 type SearchFormState = {
   gameName: string
@@ -14,7 +11,7 @@ type SearchFormState = {
   region: RoutingRegion
 }
 
-type SearchPhase = 'idle' | 'searching' | 'importing'
+type SearchPhase = 'idle' | 'searching' | 'queueing'
 
 const REGION_OPTIONS: Array<{ value: RoutingRegion; label: string; detail: string }> = [
   { value: 'EUROPE', label: 'Europe', detail: 'EUW, EUNE, TR, RU' },
@@ -39,7 +36,7 @@ export function SearchPage() {
   const isSubmitting = phase !== 'idle'
   const submitLabel = useMemo(() => {
     if (phase === 'searching') return 'Searching Riot account...'
-    if (phase === 'importing') return 'Importing and analyzing...'
+    if (phase === 'queueing') return 'Queueing background sync...'
     return 'Analyze profile'
   }, [phase])
 
@@ -65,15 +62,9 @@ export function SearchPage() {
         tagLine,
       })
 
-      setPhase('importing')
-      const importResult = await importMatchHistory(summoner.id)
-
-      navigate(`/profiles/${summoner.id}`, {
-        state: {
-          importResult,
-          summoner,
-        },
-      })
+      setPhase('queueing')
+      const syncState = await tryQueueSyncOrCaptureError(summoner)
+      navigate(`/profiles/${summoner.id}`, { state: syncState })
     } catch (error) {
       setRequestError(getSearchErrorMessage(error))
       setPhase('idle')
@@ -87,7 +78,7 @@ export function SearchPage() {
     <section className="search-layout" aria-labelledby="search-title">
       <div className="hero-panel">
         <p className="section-label">Stored personal matchup engine</p>
-        <h1 id="search-title">Search a Riot account, import once, then draft from your own history.</h1>
+        <h1 id="search-title">Search a Riot account, queue sync, then draft from your own history.</h1>
         <p className="hero-copy">
           ComfortPick stores summoner history locally, recalculates personal matchup results,
           and surfaces which champions actually work for that player instead of leaning on
@@ -101,14 +92,14 @@ export function SearchPage() {
             <p>Fresh accounts return from the database before Riot is touched again.</p>
           </article>
           <article className="feature-tile">
-            <span className="feature-eyebrow">2. Import</span>
-            <strong>Fetch only missing matches</strong>
-            <p>Stored match IDs block duplicate fetches and keep API usage under control.</p>
+            <span className="feature-eyebrow">2. Sync</span>
+            <strong>Backfill in controlled 10-match batches</strong>
+            <p>A background worker keeps walking deeper into history instead of forcing one large import.</p>
           </article>
           <article className="feature-tile">
             <span className="feature-eyebrow">3. Use</span>
             <strong>Read counters from precomputed stats</strong>
-            <p>Profile, counter, and matchup reads stay database-first after ingestion.</p>
+            <p>Profile, counter, and matchup reads stay database-first while sync continues.</p>
           </article>
         </div>
       </div>
@@ -116,8 +107,8 @@ export function SearchPage() {
       <form className="search-card" onSubmit={handleSubmit} noValidate>
         <div className="card-heading">
           <p className="section-label">Analyze summoner</p>
-          <h2>Start an import cycle</h2>
-          <p>Search, import recent matches, then land directly on the stored profile.</p>
+          <h2>Queue background history sync</h2>
+          <p>Search the Riot account, queue a background sync, and land on the stored profile immediately.</p>
         </div>
 
         <label className="field">
@@ -176,13 +167,37 @@ export function SearchPage() {
           <span>Backend behavior</span>
           <ul>
             <li>1 Riot account lookup only when the profile is missing or stale.</li>
-            <li>1 match ID request per import plus match details for unknown match IDs only.</li>
-            <li>Profile reads stay on the database after import.</li>
+            <li>Profile open queues a background sync that pulls 10-match batches toward a 500-match target.</li>
+            <li>Profile reads stay on the database while the sync worker keeps backfilling.</li>
           </ul>
         </div>
       </form>
     </section>
   )
+}
+
+async function tryQueueSyncOrCaptureError(
+  summoner: SearchSummonerResponse,
+): Promise<{
+  syncWarning?: string
+  summoner: SearchSummonerResponse
+}> {
+  try {
+    await requestProfileSync(summoner.id)
+
+    return {
+      summoner,
+    }
+  } catch (error) {
+    if (error instanceof ApiError) {
+      return {
+        syncWarning: 'Profile opened, but the background sync request did not complete.',
+        summoner,
+      }
+    }
+
+    throw error
+  }
 }
 
 function getSearchErrorMessage(error: unknown): string {

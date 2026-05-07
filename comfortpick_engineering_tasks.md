@@ -376,6 +376,7 @@ Acceptance criteria:
 Implementation note:
 - Desktop browser verification is complete.
 - Mobile verification is intentionally deferred by user instruction so frontend work can stay desktop-first for now.
+- Initial frontend-triggered import now uses a reduced recent-match window to keep Riot development-key usage practical.
 
 ## Task 13 - Frontend Profile Dashboard
 
@@ -454,7 +455,40 @@ Implementation note:
 - Desktop browser verification is complete with populated stored data.
 - Mobile verification is intentionally deferred by user instruction.
 
-## Task 16 - Production Hardening
+## Task 16 - Progressive History Sync
+
+Status: DONE
+
+Goal: Replace one-shot frontend-driven imports with a resumable background sync model that can walk toward deeper history without burning Riot dev limits immediately.
+
+Backend scope:
+- Add persistent sync state on `riot_accounts`.
+- Add a profile sync request endpoint.
+- Add a scheduled backend sync worker.
+- Process one due summoner per tick.
+- On each cycle:
+  - check the newest `10` matches at history start
+  - import only missing head matches
+  - shift the older-history cursor when new head matches appear
+  - backfill one older `10`-match batch toward the target depth
+- Pause and retry cleanly on Riot rate limits.
+- Expose sync progress on the profile dashboard response.
+
+Frontend scope:
+- Stop forcing one-shot import from the search page.
+- Queue background sync after search and on profile open.
+- Poll the profile dashboard while sync is active.
+- Show sync status and progress in the profile UI.
+
+Acceptance criteria:
+- Searching a summoner no longer requires immediate Riot-heavy import to open the profile.
+- Background sync progresses in `10`-match batches toward a `500`-match target.
+- Existing match IDs still prevent duplicate detail fetches.
+- Profile dashboard exposes sync state and progress.
+- Backend tests cover sync request and one scheduled sync cycle.
+- Frontend build, lint, and typecheck pass with the new flow.
+
+## Task 17 - Production Hardening
 
 Goal: Make the app reliable enough to keep building on.
 
@@ -496,7 +530,8 @@ Acceptance criteria:
 14. Task 10 - Matchup Detail Endpoint
 15. Task 11 - Build and Rune Analysis
 16. Task 15 - Frontend Matchup Detail Page
-17. Task 16 - Production Hardening
+17. Task 16 - Progressive History Sync
+18. Task 17 - Production Hardening
 
 ## Working Agreement
 

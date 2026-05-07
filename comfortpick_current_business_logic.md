@@ -1,20 +1,18 @@
 # ComfortPick Current Business Logic
 
-This document describes the business logic that is currently implemented in code.
-
-It is intentionally implementation-driven. If code changes later, this file should be updated with the new rules.
+This file describes the business logic that is currently implemented in code.
 
 ## 1. Product intent
 
-ComfortPick is meant to answer:
+ComfortPick answers:
 
-- Given a stored summoner profile
-- and later an enemy champion
-- which champion worked best for that player personally
+- for one stored summoner
+- against one enemy champion
+- which champion worked best for that summoner personally
 
-The core idea is personal historical performance, not global counter data.
+The product is based on the summoner's own stored history, not global counter data.
 
-## 2. Current implemented backend scope
+## 2. Implemented scope
 
 Implemented today:
 
@@ -33,33 +31,33 @@ Implemented today:
 - Task 13: frontend profile dashboard
 - Task 14: frontend enemy champion counters page
 - Task 15: frontend matchup detail page
+- Task 16: progressive history sync
 
 Not implemented yet:
 
 - production hardening
 
-That means some business logic below is already active in the running app, and some is implemented as domain logic but not yet wired into an endpoint.
-
 ## 3. Database truth model
 
-Current storage model:
+Current tables:
 
 - `riot_accounts`
-  - one row per tracked summoner
+  - tracked summoner identity
+  - also stores background history sync state
 - `matches`
   - one row per imported Riot match
 - `player_matchups`
-  - one row per imported personal matchup for one tracked summoner in one match
+  - one stored personal matchup row per imported match when extraction succeeds
 - `personal_matchup_stats`
-  - intended aggregated table for future fast reads
+  - aggregated fast-read matchup stats
 - `personal_build_stats`
-  - intended aggregated build summary table for future fast reads
+  - reserved aggregated build summary table
 
-Current source of truth for raw historical performance:
+Raw source of truth:
 
 - `player_matchups`
 
-Current intended source of truth for future counter recommendations:
+Fast-read source of truth:
 
 - `personal_matchup_stats`
 
@@ -69,14 +67,14 @@ Endpoint:
 
 - `GET /api/summoners/{region}/{gameName}/{tagLine}`
 
-Current search rule:
+Current rule:
 
 1. Parse `{region}` into `RiotRoutingRegion`
 2. Check local DB by:
    - `region`
    - `gameName`
    - `tagLine`
-3. If account exists and `updatedAt` is still fresh, return DB result
+3. If account exists and `updatedAt` is fresh, return DB result
 4. If missing or stale, call Riot Account API
 5. Upsert by `puuid`
 
@@ -84,14 +82,14 @@ Freshness window:
 
 - `24 hours`
 
-Current result source values:
+Search result source values:
 
 - `DATABASE`
 - `RIOT_API`
 
-## 5. Riot API usage rules currently implemented
+## 5. Riot API usage rules
 
-### 5.1 Search summoner request
+### 5.1 Search request
 
 If DB hit is fresh:
 
@@ -100,95 +98,131 @@ If DB hit is fresh:
 If DB miss or stale:
 
 - `1` Riot API call
-  - `GET /riot/account/v1/accounts/by-riot-id/{gameName}/{tagLine}`
+  - account by Riot ID
 
-### 5.2 Match import request
+### 5.2 Match import batch
 
 Endpoint:
 
 - `POST /api/summoners/{summonerId}/matches/import`
 
-Current request flow:
+Current inputs:
 
-1. Load stored summoner by internal `summonerId`
-2. Call Riot match ID list for the summoner `puuid`
-3. Compare returned Riot match IDs to local `matches`
-4. Only fetch details for match IDs not already stored
-5. Store new matches and extracted personal matchup rows in one transaction
-6. If at least one new `player_matchups` row was written, recalculate `personal_matchup_stats` for that summoner
+- `start`
+- `count`
+
+Current limits:
+
+- default count: `10`
+- maximum count: `20`
+
+Current flow:
+
+1. Load stored summoner by internal id
+2. Fetch Riot match IDs with `{start, count}`
+3. Compare those Riot IDs against local `matches`
+4. Fetch details only for Riot IDs not already stored
+5. Store each new `matches` row
+6. Attempt to extract exactly one personal matchup row for the tracked summoner
+7. If at least one new `player_matchups` row was written, recalculate `personal_matchup_stats`
 
 Current response fields:
 
+- `fetchedMatchCount`
 - `importedMatchCount`
-  - number of new `matches` rows stored
 - `existingMatchCount`
-  - number of Riot match IDs already present in local `matches`
 - `importedMatchupCount`
-  - number of new `player_matchups` rows written
 - `skippedMatchupCount`
-  - number of newly stored matches where personal matchup extraction failed
 
-Current recalculation trigger rule:
+Current duplicate rule:
 
-- if `importedMatchupCount > 0`, recalculate personal matchup stats for that summoner
-- if `importedMatchupCount = 0`, do not recalculate
+- a stored `riot_match_id` is never refetched for details
 
-Current Riot API call count for one import request:
+## 6. Background history sync
 
-- always `1` call to fetch recent match IDs
-  - `GET /lol/match/v5/matches/by-puuid/{puuid}/ids`
-- plus `N` calls to fetch match details
-  - where `N = number of new match IDs not already in DB`
+Current sync request endpoint:
 
-So:
+- `POST /api/profiles/{summonerId}/sync`
 
-- total Riot API calls per import request = `1 + newMatchCount`
+Purpose:
 
-Current recent match fetch window:
+- queue or refresh a resumable background history sync for one stored summoner
 
-- `100` recent match IDs
+Current sync state lives on `riot_accounts`:
 
-This is controlled by:
+- `autoSyncEnabled`
+- `syncStatus`
+- `syncTargetMatchCount`
+- `syncBackfillCursor`
+- `syncNextRunAt`
+- `syncLastSyncAt`
+- `syncLastErrorCode`
+- `syncLastErrorMessage`
 
-- `RECENT_MATCH_COUNT = 100`
+Current sync constants:
 
-Current duplicate protection rule:
+- target depth: `500`
+- batch size: `10`
+- scheduler interval: `30 seconds`
+- dashboard poll interval hint: `10 seconds`
+- max accounts per scheduler tick: `1`
 
-- if a Riot match ID already exists in local `matches`, details are not fetched again
+Current scheduler rule:
 
-## 6. Match import storage logic
+- one backend worker runs every configured interval
+- it processes due summoners where:
+  - sync is enabled
+  - `syncNextRunAt <= now`
+  - status is not `RUNNING`
 
-For each new Riot match:
+Current per-cycle rule:
 
-1. Save one `matches` row
-2. Attempt to extract exactly one personal matchup row for the tracked summoner
-3. Save one `player_matchups` row only if extraction succeeds
+1. Mark the account as `RUNNING`
+2. Fetch the newest `10` Riot match IDs at `start = 0`
+3. Import only missing head matches
+4. Advance `syncBackfillCursor` by the number of newly imported head matches
+   - this compensates for new matches pushing older history deeper
+5. If the target is not reached and the head page was full:
+   - fetch one older-history page at `start = syncBackfillCursor`
+   - import only missing older matches
+   - advance `syncBackfillCursor` by the size of that returned older page
+6. Set final status:
+   - `COMPLETE` when target depth is reached or history ends
+   - `ACTIVE` when another cycle is still needed
 
-Current import behavior for extraction:
+Current failure handling:
 
-- if the match does not contain the tracked summoner, the `matches` row is kept and the matchup row is skipped
-- if the tracked summoner has no valid `teamPosition`, the `matches` row is kept and the matchup row is skipped
-- if no enemy player exists on the opposite team with the same `teamPosition`, the `matches` row is kept and the matchup row is skipped
+- Riot `429`:
+  - status becomes `RATE_LIMITED`
+  - `syncNextRunAt = now + retryAfterSeconds`
+  - partial cursor progress from a completed head batch is preserved
+- other failures:
+  - status becomes `FAILED`
+  - `syncNextRunAt = now + 5 minutes`
+  - error code/message are stored
 
-Current transaction rule:
+Current login/profile-open rule:
 
-- match row and matchup row are written in the same request transaction
-- extraction failures are handled as business outcomes, so the `matches` row remains stored
-- unexpected persistence/runtime failures still roll back the transaction
+- search page queues sync after summoner lookup
+- profile page queues sync on open
+- profile page polls the dashboard while sync status is:
+  - `ACTIVE`
+  - `RUNNING`
+  - `RATE_LIMITED`
 
-## 7. Current matchup extraction rule
+## 7. Matchup extraction rule
 
-Current extractor logic is in:
+Implemented in:
 
 - `PlayerMatchupExtractor`
 
-Rule:
+Current rule:
 
 1. Find the participant whose `puuid` matches the stored summoner
-2. Read that participant’s `teamPosition`
+2. Read that participant's `teamPosition`
 3. Find the first enemy participant where:
    - `teamId` is different
-   - `teamPosition` matches the user role, case-insensitive
+   - `teamPosition` matches after trimming, case-insensitive
 4. Save:
    - user champion
    - enemy champion
@@ -202,50 +236,35 @@ Rule:
    - primary rune
    - secondary rune
 
-Current role matching assumptions:
+Failure reasons:
 
-- role comes directly from Riot `teamPosition`
-- matching is exact after trimming, case-insensitive
-- no fallback heuristics are implemented yet
+- `USER_PARTICIPANT_NOT_FOUND`
+- `MISSING_ROLE`
+- `OPPONENT_NOT_FOUND`
 
-Current extraction result model:
+Current import behavior for extraction failure:
 
-- success:
-  - returns one detected personal matchup
-- failure:
-  - `USER_PARTICIPANT_NOT_FOUND`
-  - `MISSING_ROLE`
-  - `OPPONENT_NOT_FOUND`
-
-Current import behavior for extraction failures:
-
-- the `matches` row is still stored
-- the `player_matchups` row is skipped
-- the match will not be refetched later because it is already known in local storage
-
-This is important:
-
-- current extraction is based on one imported match
-- future counter recommendation should be based on the full historical set of relevant `player_matchups` in the DB, not just recent in-memory API data
+- keep the `matches` row
+- skip the `player_matchups` row
 
 ## 8. Matchup stats recalculation
 
-Current recalculation use case:
+Implemented in:
 
 - `RecalculatePersonalMatchupStatsUseCase`
 
 Current rule:
 
-- recalculate stats for one summoner only
+- recalculate for one summoner only
 - use the full stored `player_matchups` history for that summoner
 - group by:
   - `enemyChampionId`
   - `userChampionId`
   - `role`
 - upsert one `personal_matchup_stats` row per group
-- delete stale `personal_matchup_stats` rows for that summoner when they no longer correspond to any grouped matchup history
+- delete stale rows for that summoner
 
-Current aggregated fields per group:
+Current aggregated fields:
 
 - `games`
 - `wins`
@@ -258,311 +277,121 @@ Current aggregated fields per group:
 - `personalScore`
 - `confidence`
 
-Current metric basis:
+Recent performance basis:
 
-- all stored matchup rows for the summoner are considered
-- `overallChampionGames` is the count of all stored `player_matchups` for the same `userChampionId`
-- recent performance uses the latest `5` stored matchup rows in the same grouped matchup
+- latest `5` stored matchup rows inside the same grouped matchup
 
-Current KDA formula for aggregation:
+## 9. Counters endpoint
 
-- if `deaths <= 0`: `kills + assists`
-- else: `(kills + assists) / deaths`
-
-## 9. Counter calculation scope
-
-Current counters endpoint:
+Endpoint:
 
 - `GET /api/profiles/{summonerId}/enemies/{enemyChampionId}/counters`
 
-Current endpoint rule:
+Current rule:
 
-- read only from `personal_matchup_stats`
-- do not call Riot API
-- sort by stored `personalScore` descending
-- derive `status` from:
+- reads only from `personal_matchup_stats`
+- does not call Riot API
+- sorts by stored `personalScore` descending
+- derives `status` from:
   - stored `personalScore`
   - stored `confidence`
   - stored `games`
-- return empty list when the summoner exists but has no counters for that enemy champion
+- returns an empty list when the summoner exists but has no counters for that enemy champion
 
-Current returned fields per counter:
+## 10. Profile dashboard endpoint
 
-- `enemyChampionId`
-- `userChampionId`
-- `role`
-- `games`
-- `wins`
-- `losses`
-- `winrate`
-- `averageKda`
-- `averageCs`
-- `averageGold`
-- `averageDamage`
-- `personalScore`
-- `confidence`
-- `status`
-
-The intended basis for one counter recommendation is:
-
-- all stored matchup rows for:
-  - one summoner
-  - one enemy champion
-  - one user champion
-  - one role
-
-So yes, the recommendation should be based on the whole relevant matchup history already stored in the DB.
-
-It should not be based only on the latest API response once stats recalculation is wired.
-
-## 10. Profile dashboard logic
-
-Current profile dashboard endpoint:
+Endpoint:
 
 - `GET /api/profiles/{summonerId}`
 
-Current endpoint rule:
+Current rule:
 
-- read only from:
+- reads only from:
   - `riot_accounts`
   - `player_matchups`
   - `personal_matchup_stats`
-- do not call Riot API
-- return dashboard data for an existing stored summoner even when no analysis has been imported yet
+- does not call Riot API
+- returns dashboard data even if analysis is still empty
 
 Current returned fields:
 
 - `summoner`
-  - internal id
-  - `gameName`
-  - `tagLine`
-  - `region`
 - `analyzedMatches`
 - `mainRole`
 - `mostPlayedChampions`
 - `bestCounters`
 - `worstMatchups`
 - `lastUpdateAt`
+- `sync`
 
-Current field derivation:
+Current `sync` fields:
 
-- `analyzedMatches`
-  - total count of stored `player_matchups` rows for the summoner
-- `mainRole`
-  - most frequent `role` across stored `player_matchups`
-  - tie-breaker is alphabetical role ordering
-- `mostPlayedChampions`
-  - top `5` `userChampionId` values by stored `player_matchups` count
-  - tie-breaker is lower `championId` first
-- `bestCounters`
-  - top `5` rows from stored `personal_matchup_stats`
-  - sorted by:
-    - `personalScore` descending
-    - `games` descending
-    - `userChampionId` ascending
-- `worstMatchups`
-  - bottom `5` rows from stored `personal_matchup_stats`
-  - sorted by:
-    - `personalScore` ascending
-    - `games` descending
-    - `userChampionId` ascending
-- `lastUpdateAt`
-  - max of:
-    - latest `personal_matchup_stats.updatedAt`
-    - latest `player_matchups.createdAt`
-  - `null` when the summoner has no stored analysis data yet
-
-Current empty dashboard behavior:
-
-- if the stored summoner exists but has no `player_matchups` and no `personal_matchup_stats`:
-  - `analyzedMatches = 0`
-  - `mainRole = null`
-  - `mostPlayedChampions = []`
-  - `bestCounters = []`
-  - `worstMatchups = []`
-  - `lastUpdateAt = null`
-
-## 11. Matchup detail logic
-
-Current matchup detail endpoint:
-
-- `GET /api/profiles/{summonerId}/enemies/{enemyChampionId}/counters/{userChampionId}`
-
-Current endpoint rule:
-
-- read only from stored DB data
-- do not call Riot API
-- return one detailed matchup view for the requested:
-  - summoner
-  - enemy champion
-  - user champion
-
-Current detail selection rule:
-
-- `personal_matchup_stats` is queried for all rows matching:
-  - `summonerId`
-  - `enemyChampionId`
-  - `userChampionId`
-- if multiple rows exist because the same champion pair was played in multiple roles:
-  - choose the row with:
-    - highest `personalScore`
-    - then highest `games`
-    - then alphabetical `role`
-
-Current returned fields:
-
-- `hasData`
-- `enemyChampionId`
-- `userChampionId`
-- `role`
-- `games`
-- `wins`
-- `losses`
-- `winrate`
-- `averageKda`
-- `averageCs`
-- `averageGold`
-- `averageDamage`
-- `personalScore`
-- `confidence`
+- `enabled`
 - `status`
-- `reasoning`
-- `lastUpdatedAt`
-- `recentGames`
+- `targetMatchCount`
+- `backfillCursor`
+- `remainingMatchCount`
+- `nextRunAt`
+- `lastSyncAt`
+- `lastErrorCode`
+- `lastErrorMessage`
+- `dashboardPollIntervalSeconds`
 
-Current recent games rule:
+## 11. Matchup detail endpoint
 
-- recent games are loaded from stored `player_matchups`
-- only rows matching the selected:
-  - `enemyChampionId`
-  - `userChampionId`
-  - `role`
-- ordered by:
-  - `match.gameCreation` descending
-  - then `player_matchups.createdAt` descending
-- limited to the latest `5` games
-
-Current no-data behavior:
-
-- if the summoner exists but no stored matchup stats exist for the requested champion pair:
-  - return `200`
-  - `hasData = false`
-  - `status = NO_DATA`
-  - `confidence = NO_DATA`
-  - `reasoning = "No personal data yet for this champion matchup."`
-  - `recentGames = []`
-
-Current reasoning text mapping:
-
-- `BEST_PICK`
-  - `"Strong personal matchup: {games} games, {winrate}% win rate, {kda} KDA, and {confidence} confidence."`
-- `GOOD_PICK`
-  - `"Positive personal results: {games} games, {winrate}% win rate, {kda} KDA, and {confidence} confidence."`
-- `OK_PICK`
-  - `"Playable but not dominant: {games} games, {winrate}% win rate, {kda} KDA, and {confidence} confidence."`
-- `LOW_DATA`
-  - `"Promising but low-confidence: only {games} games, {winrate}% win rate, and {kda} KDA."`
-- `AVOID`
-  - `"This matchup has been poor for you: {games} games, {winrate}% win rate, and {kda} KDA."`
-- `NO_DATA`
-  - `"No personal data yet for this champion matchup."`
-
-## 12. Current build and rune analysis
-
-Current build/rune analysis is exposed through:
+Endpoint:
 
 - `GET /api/profiles/{summonerId}/enemies/{enemyChampionId}/counters/{userChampionId}`
 
 Current rule:
 
-- analysis uses stored `player_matchups` for the selected:
+- reads only from stored DB data
+- does not call Riot API
+- if multiple role rows exist for the same champion pair:
+  - choose highest `personalScore`
+  - then highest `games`
+  - then alphabetical `role`
+- recent games are the newest `5` stored rows for the selected role
+
+No-data behavior:
+
+- return `200`
+- `hasData = false`
+- `status = NO_DATA`
+- `confidence = NO_DATA`
+- reasoning says no personal data exists yet
+
+## 12. Build and rune analysis
+
+Exposed through matchup detail.
+
+Current rule:
+
+- use stored `player_matchups` for the selected:
   - `enemyChampionId`
   - `userChampionId`
-  - selected `role`
-- only winning games are used for recommendations
-- if there are no winning games, build/rune recommendations return empty values
-
-Current build recommendation fields:
-
-- `firstCompletedItemId`
-- `firstCompletedItemGames`
-- `itemSet`
-- `itemSetGames`
-- `score`
-
-Current rune recommendation fields:
-
-- `primaryRuneId`
-- `primaryRuneGames`
-- `secondaryRuneId`
-- `secondaryRuneGames`
-- `score`
+  - `role`
+- only winning games are considered
+- if there are no wins, build/rune recommendations return empty values
 
 Current MVP heuristics:
 
 - `firstCompletedItemId`
-  - first non-zero inventory slot among stored final items `item0..item5`
+  - first non-zero final inventory slot among `item0..item5`
 - `itemSet`
-  - joined non-zero final inventory items from `item0..item5`
-  - format: `itemA>itemB>itemC`
+  - joined non-zero final inventory items
 - `primaryRuneId`
-  - most common `primaryRuneId` in winning games
+  - most common primary rune in wins
 - `secondaryRuneId`
-  - most common `secondaryRuneId` in winning games
+  - most common secondary rune in wins
 
-Current deterministic tie-breakers:
+## 13. Scoring formula
 
-- item ids:
-  - lower item id first when counts tie
-- item sets:
-  - lexical string order when counts tie
-- rune ids:
-  - lower rune id first when counts tie
-
-Current build/rune score formula:
-
-- one shared score is used for both build and rune recommendations
-- inputs:
-  - matchup win rate for the selected role
-  - number of winning games supporting the recommendation
-
-Formula:
-
-```text
-score = (winrate * 0.65 + sampleBoost * 0.35) - lowSamplePenalty
-```
-
-Current `sampleBoost` mapping:
-
-- `>= 5 wins` -> `100`
-- `4 wins` -> `90`
-- `3 wins` -> `75`
-- `2 wins` -> `60`
-- `1 win` -> `40`
-
-Current `lowSamplePenalty` mapping:
-
-- `0 wins` -> `100`
-- `1 win` -> `25`
-- `2 wins` -> `10`
-- `>= 3 wins` -> `0`
-
-Final score is:
-
-- rounded to 1 decimal
-- clamped to `0.0..100.0`
-
-Important current limitation:
-
-- "first completed item" is an approximation based on final inventory slots, not an actual item purchase timeline
-
-## 13. Current scoring formula
-
-Current scoring implementation is in:
+Implemented in:
 
 - `RecommendationScoringService`
 
-Final score formula:
+Current formula:
 
 ```text
 score =
@@ -577,141 +406,10 @@ score =
   - lowSamplePenalty
 ```
 
-Final score is:
+Current constants:
 
-- rounded to 1 decimal
-- clamped to `0.0..100.0`
-
-### 13.1 Winrate
-
-Formula:
-
-```text
-winrate = wins / games * 100
-```
-
-Rules:
-
-- if `games <= 0`, winrate = `0`
-- `winrateScore = winrate`, clamped to `0..100`
-
-Weight:
-
-- `0.35`
-
-### 13.2 Champion comfort
-
-Input:
-
-- `overallChampionGames`
-
-Current mapping:
-
-- `<= 0` -> `0`
-- `1..3` -> `25`
-- `4..10` -> `50`
-- `11..25` -> scales from `75` up to `90`
-- `> 25` -> `100`
-
-Weight:
-
-- `0.25`
-
-### 13.3 KDA score
-
-Input:
-
-- `averageKda`
-
-Current mapping:
-
-- `< 1.5` -> `25`
-- `< 2.5` -> `50`
-- `<= 4.0` -> `75`
-- `> 4.0` -> `100`
-
-Weight:
-
-- `0.15`
-
-### 13.4 CS and gold score
-
-Inputs:
-
-- `averageCs`
-- `averageGold`
-
-Current CS mapping:
-
-- `null` -> `50`
-- `< 120` -> `30`
-- `< 160` -> `50`
-- `< 200` -> `75`
-- `>= 200` -> `100`
-
-Current gold mapping:
-
-- `null` -> `50`
-- `< 8000` -> `30`
-- `< 10000` -> `50`
-- `< 12000` -> `75`
-- `>= 12000` -> `100`
-
-Current combined rule:
-
-```text
-csGoldScore = (csScore + goldScore) / 2
-```
-
-Weight:
-
-- `0.10`
-
-### 13.5 Recent performance score
-
-Inputs:
-
-- `recentWinrate`
-- `recentKda`
-
-Current rule:
-
-- `recentWinrateScore = recentWinrate`, clamped to `0..100`, else `50` if null
-- `recentKdaScore = calculateKdaScore(recentKda)`, else `50` if null
-
-Formula:
-
-```text
-recentPerformanceScore = (recentWinrateScore + recentKdaScore) / 2
-```
-
-Weight:
-
-- `0.10`
-
-### 13.6 Global fallback score
-
-Current constant:
-
-- `50`
-
-Weight:
-
-- `0.05`
-
-### 13.7 Low sample penalty
-
-Current penalty mapping:
-
-- `0 games` -> `100`
-- `1 game` -> `30`
-- `2 games` -> `20`
-- `3 games` -> `10`
-- `>= 4 games` -> `0`
-
-This penalty is subtracted after the weighted score is calculated.
-
-## 14. Current confidence logic
+- global fallback score: `50`
+- recent matchup sample size: `5`
 
 Current confidence mapping:
 
@@ -720,99 +418,67 @@ Current confidence mapping:
 - `3..6 games` -> `MEDIUM`
 - `>= 7 games` -> `HIGH`
 
-## 15. Current recommendation status logic
-
 Current status mapping:
 
-1. if `games <= 0` -> `NO_DATA`
-2. if `score < 45` and confidence is not `NO_DATA` -> `AVOID`
-3. if confidence is `LOW` and `score >= 50` -> `LOW_DATA`
-4. if `score >= 80` and confidence is at least `MEDIUM` -> `BEST_PICK`
-5. if `score >= 65` -> `GOOD_PICK`
-6. if `score >= 50` -> `OK_PICK`
-7. else -> `AVOID`
+1. `NO_DATA` if `games <= 0`
+2. `AVOID` if `score < 45`
+3. `LOW_DATA` if confidence is `LOW` and score is at least `50`
+4. `BEST_PICK` if `score >= 80` and confidence is at least `MEDIUM`
+5. `GOOD_PICK` if `score >= 65`
+6. `OK_PICK` if `score >= 50`
+7. else `AVOID`
 
-Possible status values:
+## 14. Current frontend flow
 
-- `BEST_PICK`
-- `GOOD_PICK`
-- `OK_PICK`
-- `LOW_DATA`
-- `AVOID`
-- `NO_DATA`
-
-## 16. Important current limitations
-
-These are current implementation realities, not bugs unless we decide they are unacceptable:
-
-- scoring is powering public recommendations, but the formula is still heuristic MVP logic
-- import currently looks at only the latest `100` Riot match IDs per request
-- role/opponent detection is same-role only and still simple
-- no retry policy for Riot rate limiting yet
-- malformed extraction cases keep the `matches` row but produce no `player_matchups` row
-- no queue filtering yet
-- no patch filtering yet
-- no recency weighting stored in DB yet
-- frontend is currently being verified desktop-first by user direction; mobile polish is intentionally deferred
-
-## 17. Current frontend flow
-
-Current frontend routes:
+Current routes:
 
 - `/`
   - validates `gameName` and `tagLine`
   - calls summoner search
-  - then calls match import
-  - then navigates to `/profiles/{summonerId}`
+  - queues background sync
+  - navigates to `/profiles/{summonerId}`
 - `/profiles/{summonerId}`
-  - loads stored profile dashboard from DB-backed API only
-  - can trigger `Refresh matches`, which calls the import endpoint and reloads the dashboard
-  - exposes an enemy champion id form that navigates to `/profiles/{summonerId}/enemies/{enemyChampionId}`
+  - loads DB-backed dashboard
+  - queues sync on open
+  - polls dashboard while sync is active
+  - exposes enemy champion name search
 - `/profiles/{summonerId}/enemies/{enemyChampionId}`
-  - loads the personal counters ranking for one enemy champion
-  - reads only from the stored counters endpoint
+  - loads stored personal counters
 - `/profiles/{summonerId}/enemies/{enemyChampionId}/counters/{userChampionId}`
-  - loads one detailed stored matchup view
-  - shows reasoning, summary stats, recent games, and build/rune recommendations when present
+  - loads stored matchup detail
 
 Current frontend API usage:
 
-- search page:
+- search:
   - `GET /api/summoners/{region}/{gameName}/{tagLine}`
-  - `POST /api/summoners/{summonerId}/matches/import`
-- profile dashboard:
+  - `POST /api/profiles/{summonerId}/sync`
+- profile:
   - `GET /api/profiles/{summonerId}`
-  - optional refresh:
-    - `POST /api/summoners/{summonerId}/matches/import`
-    - then `GET /api/profiles/{summonerId}`
-- enemy counters page:
+  - `POST /api/profiles/{summonerId}/sync`
+- counters:
   - `GET /api/profiles/{summonerId}/enemies/{enemyChampionId}/counters`
-- matchup detail page:
+- detail:
   - `GET /api/profiles/{summonerId}/enemies/{enemyChampionId}/counters/{userChampionId}`
 
-## 18. Rules most likely to change later
+## 15. Important current limitations
 
-These are the highest-probability future edits:
+- scoring is still heuristic MVP logic
+- sync is local-process scheduling, not a distributed queue
+- each cycle processes only one head batch and one older batch of `10`
+- reaching `500` scanned history slots can therefore take many cycles by design
+- role/opponent detection is still same-role only
+- rate-limit handling is resumable but still simple
+- malformed extraction cases keep the `matches` row but produce no `player_matchups` row
+- no patch filtering yet
+- no recency weighting persisted in DB yet
+- frontend is intentionally desktop-first right now
 
-- `RECENT_MATCH_COUNT = 100`
-- `RECENT_GAMES_LIMIT = 5`
-- `RECENT_MATCHUP_SAMPLE_SIZE = 5`
-- 24-hour account freshness window
-- scoring weights
-- build/rune score formula
-- low sample penalties
-- confidence thresholds
-- role/opponent fallback heuristics
-- whether malformed matches should be skipped instead of failing the whole import
-- whether import should page through more than 100 match IDs
-- how "recent performance" is computed once full stat recalculation is wired
-
-## 19. Current code references
-
-Main files for these rules:
+## 16. Code references
 
 - [SearchSummonerUseCase.kt](</C:/Users/errmi/Documents/New project/backend/src/main/kotlin/com/comfortpick/application/usecase/SearchSummonerUseCase.kt>)
 - [ImportMatchHistoryUseCase.kt](</C:/Users/errmi/Documents/New project/backend/src/main/kotlin/com/comfortpick/application/usecase/ImportMatchHistoryUseCase.kt>)
+- [RequestSummonerHistorySyncUseCase.kt](</C:/Users/errmi/Documents/New project/backend/src/main/kotlin/com/comfortpick/application/usecase/RequestSummonerHistorySyncUseCase.kt>)
+- [RunHistorySyncCycleUseCase.kt](</C:/Users/errmi/Documents/New project/backend/src/main/kotlin/com/comfortpick/application/usecase/RunHistorySyncCycleUseCase.kt>)
 - [RecalculatePersonalMatchupStatsUseCase.kt](</C:/Users/errmi/Documents/New project/backend/src/main/kotlin/com/comfortpick/application/usecase/RecalculatePersonalMatchupStatsUseCase.kt>)
 - [GetProfileDashboardUseCase.kt](</C:/Users/errmi/Documents/New project/backend/src/main/kotlin/com/comfortpick/application/usecase/GetProfileDashboardUseCase.kt>)
 - [GetPersonalMatchupDetailUseCase.kt](</C:/Users/errmi/Documents/New project/backend/src/main/kotlin/com/comfortpick/application/usecase/GetPersonalMatchupDetailUseCase.kt>)

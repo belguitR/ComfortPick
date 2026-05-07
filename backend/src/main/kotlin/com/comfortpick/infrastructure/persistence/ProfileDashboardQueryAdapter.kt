@@ -3,7 +3,9 @@ package com.comfortpick.infrastructure.persistence
 import com.comfortpick.application.port.out.ChampionPlayCount
 import com.comfortpick.application.port.out.ProfileDashboardQuery
 import com.comfortpick.application.port.out.ProfileDashboardSnapshot
+import com.comfortpick.application.port.out.ProfileSyncSnapshot
 import com.comfortpick.application.port.out.StoredProfileCounter
+import com.comfortpick.infrastructure.persistence.repository.RiotAccountRepository
 import com.comfortpick.infrastructure.persistence.repository.PersonalMatchupStatsRepository
 import com.comfortpick.infrastructure.persistence.repository.PlayerMatchupRepository
 import org.springframework.stereotype.Component
@@ -12,10 +14,13 @@ import java.util.UUID
 
 @Component
 class ProfileDashboardQueryAdapter(
+    private val riotAccountRepository: RiotAccountRepository,
     private val playerMatchupRepository: PlayerMatchupRepository,
     private val personalMatchupStatsRepository: PersonalMatchupStatsRepository,
 ) : ProfileDashboardQuery {
     override fun findProfileDashboardSnapshot(summonerId: UUID): ProfileDashboardSnapshot {
+        val account = riotAccountRepository.findById(summonerId)
+            .orElseThrow { IllegalStateException("Riot account $summonerId was not found during dashboard query") }
         val playerMatchups = playerMatchupRepository.findAllByRiotAccountId(summonerId)
         val personalStats = personalMatchupStatsRepository.findAllByRiotAccountId(summonerId)
 
@@ -66,6 +71,16 @@ class ProfileDashboardQueryAdapter(
             bestCounters = bestCounters,
             worstMatchups = worstMatchups,
             lastUpdateAt = lastUpdateAt,
+            sync = ProfileSyncSnapshot(
+                enabled = account.autoSyncEnabled,
+                status = account.syncStatus,
+                targetMatchCount = account.syncTargetMatchCount,
+                backfillCursor = account.syncBackfillCursor,
+                nextRunAt = account.syncNextRunAt,
+                lastSyncAt = account.syncLastSyncAt,
+                lastErrorCode = account.syncLastErrorCode,
+                lastErrorMessage = account.syncLastErrorMessage,
+            ),
         )
     }
 

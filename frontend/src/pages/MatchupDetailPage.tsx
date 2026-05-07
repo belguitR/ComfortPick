@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { ApiError } from '../lib/api/client'
 import { getPersonalMatchupDetail } from '../lib/api/comfortpick'
 import type { PersonalMatchupDetailResponse } from '../lib/api/comfortpick'
+import { getChampionById } from '../lib/champions'
 
 export function MatchupDetailPage() {
   const { summonerId, enemyChampionId, userChampionId } = useParams<{
@@ -104,6 +105,8 @@ export function MatchupDetailPage() {
     detail.runes.primaryRuneId != null ||
     detail.runes.secondaryRuneId != null ||
     detail.runes.score != null
+  const userChampionName = getChampionById(detail.userChampionId)?.name ?? `Champion ${detail.userChampionId}`
+  const enemyChampionName = getChampionById(detail.enemyChampionId)?.name ?? `Champion ${detail.enemyChampionId}`
 
   return (
     <section className="profile-layout">
@@ -111,7 +114,7 @@ export function MatchupDetailPage() {
         <div>
           <p className="section-label">Personal matchup detail</p>
           <h1>
-            Champion {detail.userChampionId} into {detail.enemyChampionId}
+            {userChampionName} into {enemyChampionName}
             <span>{detail.role ?? 'Unknown role'}</span>
           </h1>
           <p className="hero-copy">{detail.reasoning}</p>

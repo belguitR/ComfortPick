@@ -14,4 +14,9 @@ interface RiotAccountStore {
     fun findByPuuid(puuid: String): RiotAccount?
 
     fun save(account: RiotAccount): RiotAccount
+
+    fun findDueForSync(
+        before: java.time.LocalDateTime,
+        limit: Int,
+    ): List<RiotAccount>
 }

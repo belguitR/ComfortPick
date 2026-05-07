@@ -15,6 +15,7 @@ import java.util.UUID
     indexes = [
         Index(name = "ix_riot_accounts_puuid", columnList = "puuid"),
         Index(name = "ux_riot_accounts_region_game_tag", columnList = "region, game_name, tag_line", unique = true),
+        Index(name = "ix_riot_accounts_sync_next_run_at", columnList = "sync_next_run_at"),
     ],
     uniqueConstraints = [
         UniqueConstraint(name = "uk_riot_accounts_puuid", columnNames = ["puuid"]),
@@ -35,4 +36,20 @@ class RiotAccountEntity(
     var createdAt: LocalDateTime = LocalDateTime.now(),
     @Column(name = "updated_at", nullable = false)
     var updatedAt: LocalDateTime = LocalDateTime.now(),
+    @Column(name = "auto_sync_enabled", nullable = false)
+    var autoSyncEnabled: Boolean = false,
+    @Column(name = "sync_status", nullable = false)
+    var syncStatus: String = "IDLE",
+    @Column(name = "sync_target_match_count", nullable = false)
+    var syncTargetMatchCount: Int = 500,
+    @Column(name = "sync_backfill_cursor", nullable = false)
+    var syncBackfillCursor: Int = 0,
+    @Column(name = "sync_next_run_at")
+    var syncNextRunAt: LocalDateTime? = null,
+    @Column(name = "sync_last_sync_at")
+    var syncLastSyncAt: LocalDateTime? = null,
+    @Column(name = "sync_last_error_code")
+    var syncLastErrorCode: String? = null,
+    @Column(name = "sync_last_error_message")
+    var syncLastErrorMessage: String? = null,
 )

@@ -8,6 +8,7 @@ import com.comfortpick.application.usecase.SearchSummonerUseCase
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import java.util.UUID
@@ -45,14 +46,19 @@ class SummonerController(
     @PostMapping("/{summonerId}/matches/import")
     fun importMatchHistory(
         @PathVariable summonerId: UUID,
+        @RequestParam(required = false) start: Int?,
+        @RequestParam(required = false) count: Int?,
     ): MatchImportResponse {
         val result = importMatchHistoryUseCase.execute(
             ImportMatchHistoryCommand(
                 summonerId = summonerId,
+                matchStart = start ?: 0,
+                matchCount = count ?: ImportMatchHistoryUseCase.DEFAULT_IMPORT_MATCH_COUNT,
             ),
         )
 
         return MatchImportResponse(
+            fetchedMatchCount = result.fetchedMatchCount,
             importedMatchCount = result.importedMatchCount,
             existingMatchCount = result.existingMatchCount,
             importedMatchupCount = result.importedMatchupCount,
@@ -71,6 +77,7 @@ data class SummonerSearchResponse(
 )
 
 data class MatchImportResponse(
+    val fetchedMatchCount: Int,
     val importedMatchCount: Int,
     val existingMatchCount: Int,
     val importedMatchupCount: Int,

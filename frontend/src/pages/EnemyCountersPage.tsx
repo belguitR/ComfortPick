@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ApiError } from '../lib/api/client'
 import { getEnemyChampionCounters } from '../lib/api/comfortpick'
 import type { PersonalCounterResponse } from '../lib/api/comfortpick'
+import { CHAMPIONS, getChampionById, resolveChampionQuery } from '../lib/champions'
 
 export function EnemyCountersPage() {
   const navigate = useNavigate()
@@ -69,15 +70,17 @@ export function EnemyCountersPage() {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const normalizedValue = Number(enemyChampionInput.trim())
-    if (!Number.isInteger(normalizedValue) || normalizedValue <= 0) {
+    const champion = resolveChampionQuery(enemyChampionInput.trim())
+    if (!champion) {
       setStatus('error')
-      setErrorMessage('Enter a positive champion id.')
+      setErrorMessage('Enter a valid champion name.')
       return
     }
 
-    navigate(`/profiles/${summonerId}/enemies/${normalizedValue}`)
+    navigate(`/profiles/${summonerId}/enemies/${champion.id}`)
   }
+
+  const enemyChampionName = getChampionById(parsedEnemyChampionId)?.name ?? `Champion ${parsedEnemyChampionId}`
 
   return (
     <section className="profile-layout">
@@ -85,7 +88,7 @@ export function EnemyCountersPage() {
         <div>
           <p className="section-label">Enemy matchup search</p>
           <h1>
-            Enemy champion {parsedEnemyChampionId}
+            {enemyChampionName}
             <span>Stored counters only</span>
           </h1>
           <p className="hero-copy">
@@ -103,19 +106,24 @@ export function EnemyCountersPage() {
       <section className="dashboard-panel">
         <form className="inline-form" onSubmit={handleSubmit} noValidate>
           <label className="field inline-field">
-            <span>Enemy champion id</span>
+            <span>Enemy champion</span>
             <input
-              name="enemyChampionId"
-              inputMode="numeric"
+              name="enemyChampion"
               value={enemyChampionInput}
               onChange={(event) => setEnemyChampionInput(event.target.value)}
-              placeholder="238"
+              placeholder="Zed"
+              list="champion-options"
             />
           </label>
           <button className="primary-button compact-button" type="submit">
             Load counters
           </button>
         </form>
+        <datalist id="champion-options">
+          {CHAMPIONS.map((champion) => (
+            <option key={champion.id} value={champion.name} />
+          ))}
+        </datalist>
       </section>
 
       {isLoading && (
@@ -137,7 +145,7 @@ export function EnemyCountersPage() {
       {!isLoading && status === 'ready' && counters.length === 0 && (
         <section className="empty-panel">
           <p className="section-label">No stored counters</p>
-          <h2>No personal matchup data exists yet for this enemy champion.</h2>
+          <h2>No personal matchup data exists yet for {enemyChampionName}.</h2>
           <p className="state-copy">Import more matches or try another enemy champion id.</p>
         </section>
       )}
@@ -172,7 +180,7 @@ export function EnemyCountersPage() {
                   role="cell"
                   to={`/profiles/${summonerId}/enemies/${counter.enemyChampionId}/counters/${counter.userChampionId}`}
                 >
-                  Champion {counter.userChampionId}
+                  {getChampionById(counter.userChampionId)?.name ?? `Champion ${counter.userChampionId}`}
                 </Link>
                 <span role="cell">{counter.role}</span>
                 <span role="cell">{counter.personalScore.toFixed(1)}</span>
