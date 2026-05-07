@@ -30,6 +30,7 @@
 		<java.version>21</java.version>
 		<kotlin.version>1.9.25</kotlin.version>
 		<mockito.version>5.17.0</mockito.version>
+		<skipFrontendStaticCopy>false</skipFrontendStaticCopy>
 		<argLine></argLine>
 	</properties>
 	<dependencies>
@@ -138,7 +139,7 @@
 								</resource>
 							</resources>
 							<overwrite>true</overwrite>
-							<skip>${maven.test.skip}</skip>
+							<skip>${skipFrontendStaticCopy}</skip>
 						</configuration>
 					</execution>
 				</executions>

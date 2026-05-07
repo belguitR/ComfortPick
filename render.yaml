@@ -1,0 +1,38 @@
+services:
+  - type: web
+    name: comfortpick-api
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerContext: ./backend
+    dockerfilePath: ./backend/Dockerfile
+    autoDeployTrigger: commit
+    healthCheckPath: /api/health
+    envVars:
+      - key: SPRING_DATASOURCE_URL
+        fromDatabase:
+          name: comfortpick-db
+          property: connectionString
+      - key: RIOT_API_KEY
+        sync: false
+      - key: COMFORTPICK_WEB_ALLOWED_ORIGINS
+        sync: false
+      - key: COMFORTPICK_SYNC_TARGET_MATCHES
+        value: "500"
+      - key: COMFORTPICK_SYNC_BATCH_SIZE
+        value: "10"
+      - key: COMFORTPICK_SYNC_SCHEDULER_INTERVAL
+        value: "20s"
+      - key: COMFORTPICK_SYNC_DASHBOARD_POLL_INTERVAL
+        value: "10s"
+      - key: COMFORTPICK_SYNC_MAX_ACCOUNTS_PER_TICK
+        value: "1"
+      - key: COMFORTPICK_SYNC_ERROR_RETRY_DELAY
+        value: "5m"
+
+databases:
+  - name: comfortpick-db
+    plan: free
+    region: frankfurt
+    databaseName: comfortpick
+    diskSizeGB: 1
