@@ -354,6 +354,8 @@ Acceptance criteria:
 
 ## Task 12 - Frontend Summoner Search Flow
 
+Status: DONE
+
 Goal: Let the user search a Riot ID and start analysis.
 
 Frontend scope:
@@ -371,7 +373,13 @@ Acceptance criteria:
 - Form validation prevents empty submit.
 - Browser verification passes on desktop and mobile widths.
 
+Implementation note:
+- Desktop browser verification is complete.
+- Mobile verification is intentionally deferred by user instruction so frontend work can stay desktop-first for now.
+
 ## Task 13 - Frontend Profile Dashboard
+
+Status: DONE
 
 Goal: Show the player’s stored analysis summary.
 
@@ -387,7 +395,13 @@ Acceptance criteria:
 - Loading/error states are implemented.
 - Layout is responsive and professional.
 
+Implementation note:
+- Verified on desktop with both empty and populated states.
+- Refresh uses the existing backend import endpoint, so duplicate protection remains backend-driven.
+
 ## Task 14 - Frontend Enemy Champion Counters Page
+
+Status: DONE
 
 Goal: Show the core personal counter ranking UI.
 
@@ -409,6 +423,10 @@ Acceptance criteria:
 - Sorting matches API order.
 - Empty no-personal-data state is clear.
 - Browser verification passes on desktop and mobile widths.
+
+Implementation note:
+- Desktop browser verification is complete for both empty and populated states.
+- Mobile verification is intentionally deferred by user instruction.
 
 ## Task 15 - Frontend Matchup Detail Page
 

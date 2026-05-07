@@ -29,6 +29,9 @@ Implemented today:
 - Task 9: profile dashboard endpoint
 - Task 10: matchup detail endpoint
 - Task 11: build and rune analysis
+- Task 12: frontend summoner search flow
+- Task 13: frontend profile dashboard
+- Task 14: frontend enemy champion counters page
 
 Not implemented yet:
 
@@ -749,8 +752,39 @@ These are current implementation realities, not bugs unless we decide they are u
 - no queue filtering yet
 - no patch filtering yet
 - no recency weighting stored in DB yet
+- frontend is currently being verified desktop-first by user direction; mobile polish is intentionally deferred
 
-## 17. Rules most likely to change later
+## 17. Current frontend flow
+
+Current frontend routes:
+
+- `/`
+  - validates `gameName` and `tagLine`
+  - calls summoner search
+  - then calls match import
+  - then navigates to `/profiles/{summonerId}`
+- `/profiles/{summonerId}`
+  - loads stored profile dashboard from DB-backed API only
+  - can trigger `Refresh matches`, which calls the import endpoint and reloads the dashboard
+  - exposes an enemy champion id form that navigates to `/profiles/{summonerId}/enemies/{enemyChampionId}`
+- `/profiles/{summonerId}/enemies/{enemyChampionId}`
+  - loads the personal counters ranking for one enemy champion
+  - reads only from the stored counters endpoint
+
+Current frontend API usage:
+
+- search page:
+  - `GET /api/summoners/{region}/{gameName}/{tagLine}`
+  - `POST /api/summoners/{summonerId}/matches/import`
+- profile dashboard:
+  - `GET /api/profiles/{summonerId}`
+  - optional refresh:
+    - `POST /api/summoners/{summonerId}/matches/import`
+    - then `GET /api/profiles/{summonerId}`
+- enemy counters page:
+  - `GET /api/profiles/{summonerId}/enemies/{enemyChampionId}/counters`
+
+## 18. Rules most likely to change later
 
 These are the highest-probability future edits:
 
@@ -767,7 +801,7 @@ These are the highest-probability future edits:
 - whether import should page through more than 100 match IDs
 - how "recent performance" is computed once full stat recalculation is wired
 
-## 18. Current code references
+## 19. Current code references
 
 Main files for these rules:
 

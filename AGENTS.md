@@ -11,10 +11,11 @@ Read these files first:
 
 ## Current status
 
-- Tasks 0 through 11 are implemented locally.
-- Tasks 0 through 8 are already pushed on `origin/main`.
+- Tasks 0 through 14 are implemented locally.
+- Tasks 0 through 11 are already pushed on `origin/main`.
 - Check `git status` and `git log` before claiming remote state for the latest task.
-- Current next planned task: Task 12, frontend summoner search flow.
+- Current next planned task: Task 15, frontend matchup detail page.
+- Frontend is temporarily desktop-first by user instruction. Mobile verification is intentionally deferred for now.
 
 ## Product rule
 
