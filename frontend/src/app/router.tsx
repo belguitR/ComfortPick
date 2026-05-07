@@ -3,6 +3,7 @@ import { App } from './App'
 import { SearchPage } from '../pages/SearchPage'
 import { ProfilePage } from '../pages/ProfilePage'
 import { EnemyCountersPage } from '../pages/EnemyCountersPage'
+import { MatchupDetailPage } from '../pages/MatchupDetailPage'
 
 export const router = createBrowserRouter([
   {
@@ -20,6 +21,10 @@ export const router = createBrowserRouter([
       {
         path: 'profiles/:summonerId/enemies/:enemyChampionId',
         element: <EnemyCountersPage />,
+      },
+      {
+        path: 'profiles/:summonerId/enemies/:enemyChampionId/counters/:userChampionId',
+        element: <MatchupDetailPage />,
       },
     ],
   },

@@ -167,7 +167,13 @@ export function EnemyCountersPage() {
                 className={`counter-row status-${counter.status.toLowerCase()}`}
                 role="row"
               >
-                <strong role="cell">Champion {counter.userChampionId}</strong>
+                <Link
+                  className="counter-link"
+                  role="cell"
+                  to={`/profiles/${summonerId}/enemies/${counter.enemyChampionId}/counters/${counter.userChampionId}`}
+                >
+                  Champion {counter.userChampionId}
+                </Link>
                 <span role="cell">{counter.role}</span>
                 <span role="cell">{counter.personalScore.toFixed(1)}</span>
                 <span role="cell">{counter.games}</span>

@@ -499,6 +499,80 @@ h2 {
   min-width: 0;
 }
 
+.counter-link {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.detail-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.detail-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.detail-list div {
+  align-items: baseline;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 10px;
+}
+
+.detail-list div:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.detail-list dt {
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.detail-list dd {
+  margin: 0;
+  text-align: right;
+}
+
+.recent-games {
+  display: grid;
+  gap: 12px;
+}
+
+.recent-game {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+}
+
+.recent-win {
+  background: #f3fbf8;
+}
+
+.recent-loss {
+  background: #fff3f2;
+}
+
+.recent-game-header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.recent-game-meta {
+  color: var(--text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
 .status-best_pick {
   background: #f3fbf8;
 }
@@ -515,7 +589,8 @@ h2 {
   .search-layout,
   .dashboard-grid,
   .feature-grid,
-  .stat-strip {
+  .stat-strip,
+  .detail-grid {
     grid-template-columns: 1fr;
   }
 

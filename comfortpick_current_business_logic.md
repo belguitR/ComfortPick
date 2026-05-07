@@ -32,10 +32,11 @@ Implemented today:
 - Task 12: frontend summoner search flow
 - Task 13: frontend profile dashboard
 - Task 14: frontend enemy champion counters page
+- Task 15: frontend matchup detail page
 
 Not implemented yet:
 
-- frontend build/rune presentation
+- production hardening
 
 That means some business logic below is already active in the running app, and some is implemented as domain logic but not yet wired into an endpoint.
 
@@ -770,6 +771,9 @@ Current frontend routes:
 - `/profiles/{summonerId}/enemies/{enemyChampionId}`
   - loads the personal counters ranking for one enemy champion
   - reads only from the stored counters endpoint
+- `/profiles/{summonerId}/enemies/{enemyChampionId}/counters/{userChampionId}`
+  - loads one detailed stored matchup view
+  - shows reasoning, summary stats, recent games, and build/rune recommendations when present
 
 Current frontend API usage:
 
@@ -783,6 +787,8 @@ Current frontend API usage:
     - then `GET /api/profiles/{summonerId}`
 - enemy counters page:
   - `GET /api/profiles/{summonerId}/enemies/{enemyChampionId}/counters`
+- matchup detail page:
+  - `GET /api/profiles/{summonerId}/enemies/{enemyChampionId}/counters/{userChampionId}`
 
 ## 18. Rules most likely to change later
 

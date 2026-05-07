@@ -430,6 +430,8 @@ Implementation note:
 
 ## Task 15 - Frontend Matchup Detail Page
 
+Status: DONE
+
 Goal: Explain why a champion is recommended.
 
 Frontend scope:
@@ -447,6 +449,10 @@ Acceptance criteria:
 - Missing build/rune data has a clean empty state.
 - Recent games are scannable.
 - Browser verification passes on desktop and mobile widths.
+
+Implementation note:
+- Desktop browser verification is complete with populated stored data.
+- Mobile verification is intentionally deferred by user instruction.
 
 ## Task 16 - Production Hardening
 

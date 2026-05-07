@@ -71,6 +71,51 @@ export type PersonalCountersResponse = {
   counters: PersonalCounterResponse[]
 }
 
+export type PersonalMatchupDetailResponse = {
+  hasData: boolean
+  enemyChampionId: number
+  userChampionId: number
+  role: string | null
+  games: number
+  wins: number
+  losses: number
+  winrate: number
+  averageKda: number | null
+  averageCs: number | null
+  averageGold: number | null
+  averageDamage: number | null
+  personalScore: number | null
+  confidence: 'NO_DATA' | 'LOW' | 'MEDIUM' | 'HIGH'
+  status: 'BEST_PICK' | 'GOOD_PICK' | 'OK_PICK' | 'LOW_DATA' | 'AVOID' | 'NO_DATA'
+  reasoning: string
+  lastUpdatedAt: string | null
+  recentGames: Array<{
+    riotMatchId: string
+    gameCreation: string
+    win: boolean
+    kills: number
+    deaths: number
+    assists: number
+    totalCs: number | null
+    goldEarned: number | null
+    totalDamageToChampions: number | null
+  }>
+  build: {
+    firstCompletedItemId: number | null
+    firstCompletedItemGames: number
+    itemSet: string | null
+    itemSetGames: number
+    score: number | null
+  }
+  runes: {
+    primaryRuneId: number | null
+    primaryRuneGames: number
+    secondaryRuneId: number | null
+    secondaryRuneGames: number
+    score: number | null
+  }
+}
+
 export async function searchSummoner(input: {
   region: RoutingRegion
   gameName: string
@@ -102,5 +147,15 @@ export async function getEnemyChampionCounters(
 ): Promise<PersonalCountersResponse> {
   return apiRequest<PersonalCountersResponse>(
     `/api/profiles/${encodeURIComponent(summonerId)}/enemies/${encodeURIComponent(String(enemyChampionId))}/counters`,
+  )
+}
+
+export async function getPersonalMatchupDetail(
+  summonerId: string,
+  enemyChampionId: number,
+  userChampionId: number,
+): Promise<PersonalMatchupDetailResponse> {
+  return apiRequest<PersonalMatchupDetailResponse>(
+    `/api/profiles/${encodeURIComponent(summonerId)}/enemies/${encodeURIComponent(String(enemyChampionId))}/counters/${encodeURIComponent(String(userChampionId))}`,
   )
 }
