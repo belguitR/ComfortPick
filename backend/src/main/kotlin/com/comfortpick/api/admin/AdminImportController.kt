@@ -4,6 +4,7 @@ import com.comfortpick.application.service.DatabaseImportService
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestHeader
@@ -18,6 +19,16 @@ class AdminImportController(
     @Value("\${comfortpick.admin.import-enabled:false}") private val importEnabled: Boolean,
     @Value("\${comfortpick.admin.import-token:}") private val importToken: String,
 ) {
+
+    @GetMapping("/import-status")
+    fun importStatus(): ResponseEntity<Map<String, Any>> {
+        return ResponseEntity.ok(
+            mapOf(
+                "enabled" to importEnabled,
+                "tokenConfigured" to importToken.isNotBlank(),
+            ),
+        )
+    }
 
     @PostMapping("/import-db")
     fun importDatabase(
