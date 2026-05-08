@@ -89,6 +89,10 @@ class DatabaseImportService(
             return
         }
 
+        if (sql.contains("set_config('search_path', '', false)", ignoreCase = true)) {
+            return
+        }
+
         try {
             connection.createStatement().use { statement ->
                 statement.execute(sql)

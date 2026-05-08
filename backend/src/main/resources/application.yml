@@ -7,6 +7,8 @@ spring:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/comfortpick}
     username: ${SPRING_DATASOURCE_USERNAME:comfortpick}
     password: ${SPRING_DATASOURCE_PASSWORD:comfortpick}
+    hikari:
+      connection-init-sql: SET search_path TO public
   jpa:
     hibernate:
       ddl-auto: validate
