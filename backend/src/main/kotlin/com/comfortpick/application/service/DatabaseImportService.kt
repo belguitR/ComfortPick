@@ -5,6 +5,7 @@ import org.postgresql.copy.CopyManager
 import org.springframework.stereotype.Service
 import java.io.BufferedReader
 import java.io.StringReader
+import java.sql.SQLException
 import javax.sql.DataSource
 
 @Service
@@ -85,8 +86,13 @@ class DatabaseImportService(
             return
         }
 
-        connection.createStatement().use { statement ->
-            statement.execute(sql)
+        try {
+            connection.createStatement().use { statement ->
+                statement.execute(sql)
+            }
+        } catch (exception: SQLException) {
+            val preview = sql.replace("\n", " ").take(220)
+            throw IllegalStateException("Failed SQL statement: $preview", exception)
         }
     }
 }
