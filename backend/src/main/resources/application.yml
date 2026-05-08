@@ -37,6 +37,9 @@ riot:
     timeout: ${RIOT_API_TIMEOUT:5s}
 
 comfortpick:
+  admin:
+    import-enabled: ${COMFORTPICK_ADMIN_IMPORT_ENABLED:false}
+    import-token: ${COMFORTPICK_ADMIN_IMPORT_TOKEN:}
   web:
     allowed-origins: ${COMFORTPICK_WEB_ALLOWED_ORIGINS:}
   sync:

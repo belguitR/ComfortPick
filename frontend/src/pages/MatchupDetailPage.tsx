@@ -106,12 +106,12 @@ export function MatchupDetailPage() {
     detail.runes.score != null
   const userChampion = getChampionById(detail.userChampionId)
   const enemyChampion = getChampionById(detail.enemyChampionId)
-  const userChampionName = userChampion?.name ?? `Champion ${detail.userChampionId}`
-  const enemyChampionName = enemyChampion?.name ?? `Champion ${detail.enemyChampionId}`
+  const userChampionName = userChampion?.name ?? 'Unknown champion'
+  const enemyChampionName = enemyChampion?.name ?? 'Unknown champion'
   const firstItem = detail.build.firstCompletedItemId != null
     ? getItemById(detail.build.firstCompletedItemId) ?? {
         id: detail.build.firstCompletedItemId,
-        name: `Item ${detail.build.firstCompletedItemId}`,
+        name: 'Unknown item',
         image: '',
       }
     : null
@@ -119,14 +119,14 @@ export function MatchupDetailPage() {
   const primaryRune = detail.runes.primaryRuneId != null
     ? getRuneById(detail.runes.primaryRuneId) ?? {
         id: detail.runes.primaryRuneId,
-        name: `Rune ${detail.runes.primaryRuneId}`,
+        name: 'Unknown rune',
         image: '',
       }
     : null
   const secondaryRune = detail.runes.secondaryRuneId != null
     ? getRuneById(detail.runes.secondaryRuneId) ?? {
         id: detail.runes.secondaryRuneId,
-        name: `Rune ${detail.runes.secondaryRuneId}`,
+        name: 'Unknown rune',
         image: '',
       }
     : null
@@ -290,7 +290,6 @@ export function MatchupDetailPage() {
                   <span>KDA</span>
                   <span>CS / Gold</span>
                   <span>Date</span>
-                  <span>Match ID</span>
                 </div>
                 {detail.recentGames.map((game) => (
                   <div key={game.riotMatchId} className="matchup-table-row">
@@ -306,7 +305,6 @@ export function MatchupDetailPage() {
                     <span>{game.kills} / {game.deaths} / {game.assists}</span>
                     <span>{game.totalCs ?? 'N/A'} CS | {game.goldEarned ?? 'N/A'} G</span>
                     <span>{formatDateShort(game.gameCreation)}</span>
-                    <span>{game.riotMatchId}</span>
                   </div>
                 ))}
               </div>
