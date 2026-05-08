@@ -29,11 +29,14 @@ class DatabaseImportService(
             BufferedReader(StringReader(dump)).use { reader ->
                 var line = reader.readLine()
                 while (line != null) {
+                    if (line.startsWith("COPY ")) {
+                        executeStatementBuffer(connection, statementLines)
+                        restoreCopyBlock(copyManager, line, reader)
+                        line = reader.readLine()
+                        continue
+                    }
+
                     if (line.startsWith("\\")) {
-                        if (line.startsWith("COPY ")) {
-                            executeStatementBuffer(connection, statementLines)
-                            restoreCopyBlock(copyManager, line, reader)
-                        }
                         line = reader.readLine()
                         continue
                     }
